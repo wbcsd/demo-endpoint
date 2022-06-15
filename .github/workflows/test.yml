@@ -1,0 +1,29 @@
+on: [push]
+
+name: CI
+
+jobs:
+  build_and_test:
+    name: Rust project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Cache target
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-default-target-and-lockfile
+        with:
+          path: |
+            endpoint/target
+            endpoint/Cargo.lock
+            ~/.rustup
+          key: ${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}
+      - name: CI
+        working-directory: ./endpoint
+        run: |
+          cargo build
+          cargo test
+          cargo clippy -- -Dwarnings
