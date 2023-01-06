@@ -413,7 +413,7 @@ impl JsonSchema for WrappedDecimal {
         };
 
         s.string = Some(Box::new(StringValidation {
-            pattern: Some(String::from("a")),
+            pattern: Some(String::from("^-?\\d+(\\.\\d+)?$")),
             ..Default::default()
         }));
 
