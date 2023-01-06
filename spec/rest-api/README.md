@@ -13,3 +13,4 @@ You can regenerate the files by building and running the [endpoint](../../endpoi
 |                  Version                  |    Date    | Comment Changes                                  |
 | :---------------------------------------: | :--------: | ------------------------------------------------ |
 | [`1.0.0-beta1`](openapi-1.0.0-beta1.json) | 2022-06-16 | Initial version imported for comments and review |
+| [`1.0.0-beta2`](openapi-1.0.0-beta2.json) | 2023-01-06 | Updated version (incorporating Mikito Iwamasa's feedback. Thank you!) |
