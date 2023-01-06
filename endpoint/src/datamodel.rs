@@ -161,12 +161,15 @@ pub(crate) struct VersionInteger(pub(crate) i32);
 /// Encoded geographic scope rules of a Spec Version 1 `CarbonFootprint`
 pub(crate) enum GeographicScope {
     Global,
+    #[serde(rename_all = "camelCase")]
     Regional {
         geography_region_or_subregion: UNRegionOrSubregion,
     },
+    #[serde(rename_all = "camelCase")]
     Country {
         geography_country: ISO3166CC,
     },
+    #[serde(rename_all = "camelCase")]
     Subdivision {
         geography_country_subdivision: NonEmptyString,
     },
