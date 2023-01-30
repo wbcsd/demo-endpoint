@@ -42,10 +42,38 @@ pub(crate) struct ProductFootprint {
 pub(crate) struct CarbonFootprint {
     pub(crate) declared_unit: DeclaredUnit,
     pub(crate) unitary_product_amount: StrictlyPositiveDecimal,
+    pub(crate) pcf_excluding_biogenic: PositiveDecimal,
+    pub(crate) pcf_including_biogenic: WrappedDecimal,
     pub(crate) fossil_ghg_emissions: PositiveDecimal,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) biogenic_emissions: Option<BiogenicEmissions>,
+    pub(crate) fossil_carbon_content: PositiveDecimal,
     pub(crate) biogenic_carbon_content: PositiveDecimal,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) d_luc_ghg_emissions: Option<PositiveDecimal>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) land_management_ghg_emissions: Option<PositiveDecimal>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) other_biogenic_ghg_emissions: Option<PositiveDecimal>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) i_luc_ghg_emissions: Option<PositiveDecimal>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) biogenic_carbon_withdrawal: Option<PositiveDecimal>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) aircraft_ghg_emissions: Option<PositiveDecimal>,
+
+    pub(crate) characterization_factors: CharacterizationFactors,
+
+    pub(crate) cross_sectoral_standards_used: CrossSectoralStandardSet,
+    pub(crate) product_or_sector_specific_rules: ProductOrSectorSpecificRuleSet,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) biogenic_accounting_methodology: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) boundary_processes_description: Option<String>,
+
     pub(crate) reporting_period_start: DateTime<Utc>,
     pub(crate) reporting_period_end: DateTime<Utc>,
 
@@ -53,15 +81,31 @@ pub(crate) struct CarbonFootprint {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) geographic_scope: Option<GeographicScope>,
 
-    pub(crate) primary_data_share: Percent,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) emission_factor_sources: Option<EmissionFactorDSSet>,
+    pub(crate) secondary_emission_factor_sources: Option<EmissionFactorDSSet>,
+
+    pub(crate) exempted_emissions_percent: PositiveDecimal,
+    pub(crate) exempted_emissions_description: String,
+
+    pub(crate) packagingEmissionsIncluded: bool,
+
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) boundary_processes_description: Option<String>,
-    pub(crate) cross_sectoral_standards_used: CrossSectoralStandardSet,
-    pub(crate) product_or_sector_specific_rules: ProductOrSectorSpecificRuleSet,
+    pub(crate) packaging_ghg_emissions: Option<PositiveDecimal>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) allocation_rules_description: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) uncertainty_assessment_description: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) primary_data_share: Option<Percent>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) dqi: Option<DataQualityIndicators>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) assurance: Option<Assurance>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -99,6 +143,15 @@ pub(crate) enum CrossSectoralStandard {
     ISO14067,
     #[serde(rename = "ISO Standard 14044")]
     ISO14044,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, JsonSchema, PartialEq)]
+#[serde(crate = "rocket::serde")]
+pub(crate) enum CharacterizationFactors {
+    #[serde(rename = "AR5")]
+    Ar5,
+    #[serde(rename = "AR6")]
+    Ar6,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -231,19 +284,6 @@ pub(crate) struct CrossSectoralStandardSet(pub(crate) Vec<CrossSectoralStandard>
 pub(crate) struct ISO3166CC(pub(crate) String);
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
-#[serde(crate = "rocket::serde", rename_all = "camelCase")]
-// TODO JSONSchema: at least one field must be defined
-/// Data Type "BiogenicEmissions" of Spec vesrion 1
-pub(crate) struct BiogenicEmissions {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) land_use_emissions: Option<WrappedDecimal>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) land_use_change_emissions: Option<WrappedDecimal>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) other_emissions: Option<WrappedDecimal>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
 #[serde(crate = "rocket::serde")]
 #[allow(dead_code)]
 pub(crate) enum ProductOrSectorSpecificRuleOperator {
@@ -270,6 +310,70 @@ pub(crate) struct ProductOrSectorSpecificRule {
 pub(crate) struct EmissionFactorDS {
     pub(crate) name: NonEmptyString,
     pub(crate) version: NonEmptyString,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
+/// Data Type "DataQualityIndicators" of Spec Version 2
+pub(crate) struct DataQualityIndicators {
+    pub(crate) coverage_percent: Percent,
+    pub(crate) technological_d_q_r: StrictlyPositiveDecimal,
+    pub(crate) temporal_d_q_r: StrictlyPositiveDecimal,
+    pub(crate) geographical_d_q_r: StrictlyPositiveDecimal,
+    pub(crate) completeness_d_q_r: StrictlyPositiveDecimal,
+    pub(crate) reliability_d_q_r: StrictlyPositiveDecimal,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
+/// Data Type "Assurance" of Spec Version 2
+pub(crate) struct Assurance {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) coverage: Option<AssuranceCoverage>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) level: Option<AssuranceLevel>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) boundary: Option<AssuranceBoundary>,
+
+    pub(crate) provider_name: String,
+    pub(crate) completed_at: DateTime<Utc>,
+    pub(crate) standard: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) comments: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
+#[serde(crate = "rocket::serde")]
+pub(crate) enum AssuranceCoverage {
+    #[serde(rename = "corporate level")]
+    CorporateLevel,
+    #[serde(rename = "product line")]
+    ProductLine,
+    #[serde(rename = "PCF system")]
+    PcfSystem,
+    #[serde(rename = "product level")]
+    ProductLevel,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
+#[serde(crate = "rocket::serde")]
+pub(crate) enum AssuranceLevel {
+    #[serde(rename = "limited")]
+    Limited,
+    #[serde(rename = "reasonable")]
+    Reasonable,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
+#[serde(crate = "rocket::serde")]
+pub(crate) enum AssuranceBoundary {
+    #[serde(rename = "Gate-to-Gate")]
+    GateToGate,
+    #[serde(rename = "Cradle-to-Gate")]
+    CradleToGate,
 }
 
 impl From<Decimal> for PositiveDecimal {
