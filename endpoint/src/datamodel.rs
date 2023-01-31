@@ -87,7 +87,7 @@ pub(crate) struct CarbonFootprint {
     pub(crate) exempted_emissions_percent: PositiveDecimal,
     pub(crate) exempted_emissions_description: String,
 
-    pub(crate) packagingEmissionsIncluded: bool,
+    pub(crate) packaging_emissions_included: bool,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) packaging_ghg_emissions: Option<PositiveDecimal>,
