@@ -17,9 +17,9 @@ lazy_static! {
     static ref PCF: CarbonFootprint = CarbonFootprint {
         cross_sectoral_standards_used: CrossSectoralStandardSet(vec![CrossSectoralStandard::Ghgp]),
         fossil_ghg_emissions: dec!(0.123).into(),
-        primary_data_share: 56.12.into(),
+        primary_data_share: Some(56.12.into()),
         boundary_processes_description: Some(String::from("End-of-life included")),
-        emission_factor_sources: Some(EmissionFactorDSSet(vec![EmissionFactorDS {
+        secondary_emission_factor_sources: Some(EmissionFactorDSSet(vec![EmissionFactorDS {
             name: String::from("Ecoinvent").into(),
             version: String::from("1.2.3").into(),
         }])),
@@ -29,11 +29,10 @@ lazy_static! {
         geography_country: Some(ISO3166CC(String::from("FR"))),
         geography_country_subdivision: None, */
         geographic_scope: Some(GeographicScope::Country { geography_country: ISO3166CC(String::from("FR")) }),
-        biogenic_emissions: Some(BiogenicEmissions {
-            land_use_emissions: Some(dec!(0.001).into()),
-            land_use_change_emissions: None,
-            other_emissions: Some(dec!(0).into()),
-        }),
+        i_luc_ghg_emissions: None,
+        d_luc_ghg_emissions: None,
+        land_management_ghg_emissions: Some(dec!(0.001).into()),
+        other_biogenic_ghg_emissions: Some(dec!(0).into()),
         biogenic_carbon_content: dec!(0.0).into(),
         product_or_sector_specific_rules: ProductOrSectorSpecificRuleSet(vec![
             ProductOrSectorSpecificRule {
@@ -45,6 +44,20 @@ lazy_static! {
         allocation_rules_description: None,
         declared_unit: DeclaredUnit::Liter,
         unitary_product_amount: dec!(12.0).into(),
+        aircraft_ghg_emissions: None,
+        assurance: None,
+        biogenic_accounting_methodology: None,
+        biogenic_carbon_withdrawal: None,
+        characterization_factors: CharacterizationFactors::Ar5,
+        dqi: None,
+        exempted_emissions_percent: dec!(0.0).into(),
+        exempted_emissions_description: "".to_string(),
+        fossil_carbon_content: dec!(0.0).into(),
+        packaging_emissions_included: false,
+        packaging_ghg_emissions: None,
+        pcf_excluding_biogenic: dec!(0.0).into(),
+        pcf_including_biogenic: dec!(0.0).into(),
+        uncertainty_assessment_description: None,
     };
 }
 
