@@ -55,8 +55,8 @@ lazy_static! {
         fossil_carbon_content: dec!(0.0).into(),
         packaging_emissions_included: false,
         packaging_ghg_emissions: None,
-        pcf_excluding_biogenic: dec!(0.0).into(),
-        pcf_including_biogenic: dec!(0.0).into(),
+        p_cf_excluding_biogenic: dec!(0.0).into(),
+        p_cf_including_biogenic: dec!(0.0).into(),
         uncertainty_assessment_description: None,
     };
 }

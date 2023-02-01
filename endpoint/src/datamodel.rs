@@ -42,8 +42,8 @@ pub(crate) struct ProductFootprint {
 pub(crate) struct CarbonFootprint {
     pub(crate) declared_unit: DeclaredUnit,
     pub(crate) unitary_product_amount: StrictlyPositiveDecimal,
-    pub(crate) pcf_excluding_biogenic: PositiveDecimal,
-    pub(crate) pcf_including_biogenic: WrappedDecimal,
+    pub(crate) p_cf_excluding_biogenic: PositiveDecimal,
+    pub(crate) p_cf_including_biogenic: WrappedDecimal,
     pub(crate) fossil_ghg_emissions: PositiveDecimal,
     pub(crate) fossil_carbon_content: PositiveDecimal,
     pub(crate) biogenic_carbon_content: PositiveDecimal,
