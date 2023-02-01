@@ -15,15 +15,19 @@ mod datamodel;
 mod error;
 mod sample_data;
 
+use std::cmp::min;
+
 use auth::UserToken;
 use either::Either;
 use lambda_web::{is_running_on_lambda, launch_rocket_on_lambda, LambdaError};
 use rocket::catch;
 use rocket::form::Form;
+use rocket::http::Header;
 use rocket::serde::json::Json;
 use rocket_okapi::rapidoc::{
     make_rapidoc, GeneralConfig, HideShowConfig, RapiDocConfig, Theme, UiConfig,
 };
+use rocket_okapi::response::OpenApiResponderInner;
 use rocket_okapi::settings::{OpenApiSettings, UrlObject};
 use rocket_okapi::swagger_ui::{make_swagger_ui, SwaggerUIConfig};
 use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};
@@ -56,13 +60,47 @@ fn oauth2_create_token(
     }
 }
 
+#[derive(Responder)]
+#[response(status = 200, content_type = "json")]
+struct PCFListingResponseWithNextLink {
+    json: Json<PCFListingResponse>,
+    link: Header<'static>,
+}
+
+impl OpenApiResponderInner for PCFListingResponseWithNextLink {
+    fn responses(
+        gen: &mut rocket_okapi::gen::OpenApiGenerator,
+    ) -> rocket_okapi::Result<okapi::openapi3::Responses> {
+        <Json<PCFListingResponse>>::responses(gen)
+    }
+}
+
 #[openapi]
-#[get("/0/footprints", format = "json")]
-fn get_list(auth: Option<UserToken>) -> Either<Json<PCFListingResponse>, error::AccessDenied> {
+#[get("/0/footprints?<limit>&<offset>", format = "json")]
+fn get_list(
+    auth: Option<UserToken>,
+    limit: Option<usize>,
+    offset: Option<usize>,
+) -> Either<PCFListingResponseWithNextLink, error::AccessDenied> {
     if auth.is_some() {
-        Left(Json(PCFListingResponse {
-            data: PCF_DEMO_DATA.to_vec(),
-        }))
+        let data = PCF_DEMO_DATA.to_vec();
+        let offset = offset.unwrap_or_default();
+        let max_limit = data.len() - offset;
+        let limit = min(limit.unwrap_or(max_limit), max_limit);
+        if offset < data.len() {
+            let next_offset = offset + limit;
+            let link = if next_offset < data.len() {
+                Header::new("link", format!("<https://api.example.com/0/footprints?offset={next_offset}&limit={limit}>; rel=\"next\""))
+            } else {
+                Header::new("link", format!(""))
+            };
+            let json = Json(PCFListingResponse {
+                data: data[offset..offset + limit].to_vec(),
+            });
+            Left(PCFListingResponseWithNextLink { json, link })
+        } else {
+            Either::Right(Default::default())
+        }
     } else {
         Either::Right(Default::default())
     }
@@ -163,7 +201,7 @@ fn get_list_test() {
     let bearer_token = format!("Bearer {jwt}");
     let client = &Client::tracked(create_server()).unwrap();
 
-    let get_list_uri = uri!(get_list);
+    let get_list_uri = "/0/footprints";
 
     // test auth
     {
@@ -185,6 +223,71 @@ fn get_list_test() {
     {
         let resp = client.get(get_list_uri).dispatch();
         assert_eq!(rocket::http::Status::Forbidden, resp.status());
+    }
+}
+
+#[test]
+fn get_list_with_limit_test() {
+    let token = UserToken {
+        username: "hello".to_string(),
+    };
+    let jwt = auth::encode_token(&token).ok().unwrap();
+    let bearer_token = format!("Bearer {jwt}");
+    let client = &Client::tracked(create_server()).unwrap();
+
+    let get_list_with_limit_uri = "/0/footprints?limit=3";
+    let expected_next_link1 = "/0/footprints?offset=3&limit=3";
+    let expected_next_link2 = "/0/footprints?offset=6&limit=3";
+
+    {
+        let resp = client
+            .get(get_list_with_limit_uri.clone())
+            .header(rocket::http::Header::new(
+                "Authorization",
+                bearer_token.clone(),
+            ))
+            .dispatch();
+
+        assert_eq!(rocket::http::Status::Ok, resp.status());
+        let link_header = resp.headers().get("link").next().unwrap().to_string();
+        assert_eq!(
+            link_header,
+            format!("<https://api.example.com{expected_next_link1}>; rel=\"next\"")
+        );
+        let json: PCFListingResponse = resp.into_json().unwrap();
+        assert_eq!(json.data.len(), 3);
+    }
+
+    {
+        let resp = client
+            .get(expected_next_link1)
+            .header(rocket::http::Header::new(
+                "Authorization",
+                bearer_token.clone(),
+            ))
+            .dispatch();
+
+        assert_eq!(rocket::http::Status::Ok, resp.status());
+        let link_header = resp.headers().get("link").next().unwrap().to_string();
+        assert_eq!(
+            link_header,
+            format!("<https://api.example.com{expected_next_link2}>; rel=\"next\"")
+        );
+        let json: PCFListingResponse = resp.into_json().unwrap();
+        assert_eq!(json.data.len(), 3);
+    }
+
+    {
+        let resp = client
+            .get(expected_next_link2)
+            .header(rocket::http::Header::new("Authorization", bearer_token))
+            .dispatch();
+
+        assert_eq!(rocket::http::Status::Ok, resp.status());
+        let link_header = resp.headers().get("link").next().unwrap().to_string();
+        assert_eq!(link_header, "");
+        let json: PCFListingResponse = resp.into_json().unwrap();
+        assert_eq!(json.data.len(), 2);
     }
 }
 
