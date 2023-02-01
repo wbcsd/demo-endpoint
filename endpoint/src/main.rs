@@ -60,11 +60,27 @@ fn oauth2_create_token(
     }
 }
 
-#[derive(Responder)]
-#[response(status = 200, content_type = "json")]
+#[derive(Debug)]
 struct PCFListingResponseWithNextLink {
     json: Json<PCFListingResponse>,
-    link: Header<'static>,
+    link: Option<String>,
+}
+
+impl<'r, 'o: 'r> rocket::response::Responder<'r, 'o> for PCFListingResponseWithNextLink {
+    fn respond_to(self, r: &'r rocket::Request<'_>) -> rocket::response::Result<'o> {
+        let mut build = rocket::response::Response::build_from(self.json.respond_to(r).unwrap());
+        if let Some(link) = self.link {
+            build.merge(
+                rocket::Response::build()
+                    .header(Header::new("link", link))
+                    .finalize(),
+            );
+        }
+        build
+            .status(rocket::http::Status::Ok)
+            .header(rocket::http::ContentType::JSON)
+            .ok()
+    }
 }
 
 impl OpenApiResponderInner for PCFListingResponseWithNextLink {
@@ -90,9 +106,9 @@ fn get_list(
         if offset < data.len() {
             let next_offset = offset + limit;
             let link = if next_offset < data.len() {
-                Header::new("link", format!("<https://api.example.com/0/footprints?offset={next_offset}&limit={limit}>; rel=\"next\""))
+                Some(format!("<https://api.example.com/0/footprints?offset={next_offset}&limit={limit}>; rel=\"next\""))
             } else {
-                Header::new("link", format!(""))
+                None
             };
             let json = Json(PCFListingResponse {
                 data: data[offset..offset + limit].to_vec(),
@@ -284,8 +300,7 @@ fn get_list_with_limit_test() {
             .dispatch();
 
         assert_eq!(rocket::http::Status::Ok, resp.status());
-        let link_header = resp.headers().get("link").next().unwrap().to_string();
-        assert_eq!(link_header, "");
+        assert_eq!(resp.headers().get("link").next(), None);
         let json: PCFListingResponse = resp.into_json().unwrap();
         assert_eq!(json.data.len(), 2);
     }
@@ -322,7 +337,7 @@ fn get_pcf_test() {
     // test unuath
     {
         let get_pcf_uri = format!("/0/footprints/{}", PCF_DEMO_DATA[2].id.0);
-        let resp = client.get(get_pcf_uri.clone()).dispatch();
+        let resp = client.get(get_pcf_uri).dispatch();
         assert_eq!(rocket::http::Status::Forbidden, resp.status());
     }
 
