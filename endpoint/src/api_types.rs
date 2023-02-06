@@ -94,7 +94,7 @@ impl<'r> schemars::JsonSchema for FilterString<'r> {
     }
 }
 
-impl<'h> OpenApiResponderInner for PFCListingResponse {
+impl OpenApiResponderInner for PFCListingResponse {
     fn responses(
         gen: &mut rocket_okapi::gen::OpenApiGenerator,
     ) -> rocket_okapi::Result<okapi::openapi3::Responses> {
