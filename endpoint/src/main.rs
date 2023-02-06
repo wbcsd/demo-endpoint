@@ -40,6 +40,9 @@ use Either::Left;
 #[cfg(test)]
 use rocket::local::blocking::Client;
 
+// minimum number of results to return from Action `ListFootprints`
+const ACTION_LIST_FOOTPRINTS_MIN_RESULTS: usize = 10;
+
 /// endpoint to create an oauth2 client credentials grant (RFC 6749 4.4)
 #[post("/token", data = "<body>")]
 fn oauth2_create_token(
@@ -60,66 +63,105 @@ fn oauth2_create_token(
     }
 }
 
-#[derive(Debug)]
-struct PCFListingResponseWithNextLink {
-    json: Json<PCFListingResponse>,
-    link: Option<String>,
+#[derive(Debug, Responder)]
+enum PFCListingResponse {
+    Finished(Json<PCFListingResponse>),
+    Cont(Json<PCFListingResponse>, Header<'static>),
 }
 
-impl<'r, 'o: 'r> rocket::response::Responder<'r, 'o> for PCFListingResponseWithNextLink {
-    fn respond_to(self, r: &'r rocket::Request<'_>) -> rocket::response::Result<'o> {
-        let mut build = rocket::response::Response::build_from(self.json.respond_to(r).unwrap());
-        if let Some(link) = self.link {
-            build.merge(
-                rocket::Response::build()
-                    .header(Header::new("link", link))
-                    .finalize(),
-            );
-        }
-        build
-            .status(rocket::http::Status::Ok)
-            .header(rocket::http::ContentType::JSON)
-            .ok()
-    }
-}
-
-impl OpenApiResponderInner for PCFListingResponseWithNextLink {
+impl<'h> OpenApiResponderInner for PFCListingResponse {
     fn responses(
         gen: &mut rocket_okapi::gen::OpenApiGenerator,
     ) -> rocket_okapi::Result<okapi::openapi3::Responses> {
-        <Json<PCFListingResponse>>::responses(gen)
+        use okapi::openapi3::RefOr;
+
+        let mut responses: okapi::openapi3::Responses = <Json<PCFListingResponse>>::responses(gen)?;
+
+        match &mut responses.responses["200"] {
+            RefOr::Object(response) => {
+                let header = openapi_link_header();
+                let header = RefOr::Object(header);
+                response.headers.insert("link".to_owned(), header);
+            }
+            _ => {
+                panic!("expected object");
+            }
+        }
+
+        Ok(responses)
+    }
+}
+
+fn openapi_link_header() -> okapi::openapi3::Header {
+    okapi::openapi3::Header {
+        description: Some(
+            "Link header to next result set. See Tech Specs section 6.6.1".to_owned(),
+        ),
+        value: okapi::openapi3::ParameterValue::Schema {
+            style: None,
+            explode: None,
+            allow_reserved: false,
+            example: Some(
+                "https://api.example.com/2/footprints?[...]"
+                    .to_owned()
+                    .into(),
+            ),
+            examples: None,
+            schema: okapi::openapi3::SchemaObject {
+                instance_type: Some(schemars::schema::InstanceType::String.into()),
+                ..Default::default()
+            },
+        },
+        required: false,
+        deprecated: false,
+        allow_empty_value: false,
+        extensions: Default::default(),
+    }
+}
+
+#[get("/0/footprints?<limit>&<offset>", format = "json")]
+fn get_list(
+    auth: Option<UserToken>,
+    limit: usize,
+    offset: usize,
+) -> Either<PFCListingResponse, error::AccessDenied> {
+    if !auth.is_some() {
+        return Either::Right(Default::default());
+    }
+
+    if offset >= PCF_DEMO_DATA.len() {
+        return Either::Right(Default::default());
+    }
+
+    let data = &PCF_DEMO_DATA;
+    let max_limit = data.len() - offset;
+    let limit = min(limit, max_limit);
+
+    let next_offset = offset + limit;
+    let footprints = Json(PCFListingResponse {
+        data: data[offset..offset + limit].to_vec(),
+    });
+
+    if next_offset < data.len() {
+        let link = format!("<https://api.example.com/0/footprints?offset={next_offset}&limit={limit}>; rel=\"next\"");
+        Left(PFCListingResponse::Cont(
+            footprints,
+            rocket::http::Header::new("link", link),
+        ))
+    } else {
+        Left(PFCListingResponse::Finished(footprints))
     }
 }
 
 #[openapi]
-#[get("/0/footprints?<limit>&<offset>", format = "json")]
-fn get_list(
+#[get("/0/footprints?<limit>", format = "json", rank = 2)]
+fn get_footprints(
     auth: Option<UserToken>,
     limit: Option<usize>,
-    offset: Option<usize>,
-) -> Either<PCFListingResponseWithNextLink, error::AccessDenied> {
-    if auth.is_some() {
-        let data = PCF_DEMO_DATA.to_vec();
-        let offset = offset.unwrap_or_default();
-        let max_limit = data.len() - offset;
-        let limit = min(limit.unwrap_or(max_limit), max_limit);
-        if offset < data.len() {
-            let next_offset = offset + limit;
-            let link = if next_offset < data.len() {
-                Some(format!("<https://api.example.com/0/footprints?offset={next_offset}&limit={limit}>; rel=\"next\""))
-            } else {
-                None
-            };
-            let json = Json(PCFListingResponse {
-                data: data[offset..offset + limit].to_vec(),
-            });
-            Left(PCFListingResponseWithNextLink { json, link })
-        } else {
-            Either::Right(Default::default())
-        }
-    } else {
-        Either::Right(Default::default())
-    }
+) -> Either<PFCListingResponse, error::AccessDenied> {
+    let limit = limit.unwrap_or(ACTION_LIST_FOOTPRINTS_MIN_RESULTS);
+    let offset = 0;
+    get_list(auth, limit, offset)
 }
 
 #[openapi]
@@ -158,13 +200,14 @@ const OPENAPI_PATH: &str = "../openapi.json";
 
 fn create_server() -> rocket::Rocket<rocket::Build> {
     let settings = OpenApiSettings::default();
-    let (mut openapi_routes, openapi_spec) = openapi_get_routes_spec![settings: get_pcf, get_list];
+    let (mut openapi_routes, openapi_spec) =
+        openapi_get_routes_spec![settings: get_pcf, get_footprints];
 
     openapi_routes.push(get_openapi_route(openapi_spec, &settings));
 
     rocket::build()
         .mount("/", openapi_routes)
-        .mount("/", routes![get_pcf_unauth])
+        .mount("/", routes![get_list, get_pcf_unauth])
         .mount("/0/auth", routes![oauth2_create_token])
         .mount(
             "/swagger-ui/",
