@@ -22,18 +22,15 @@ use either::Either;
 use lambda_web::{is_running_on_lambda, launch_rocket_on_lambda, LambdaError};
 use rocket::catch;
 use rocket::form::Form;
-use rocket::form::FromForm;
-use rocket::http::Header;
 use rocket::serde::json::Json;
 use rocket_okapi::rapidoc::{
     make_rapidoc, GeneralConfig, HideShowConfig, RapiDocConfig, Theme, UiConfig,
 };
-use rocket_okapi::response::OpenApiResponderInner;
 use rocket_okapi::settings::{OpenApiSettings, UrlObject};
 use rocket_okapi::swagger_ui::{make_swagger_ui, SwaggerUIConfig};
 use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};
 
-use api_types::{PCFListingResponse, ProductFootprintResponse};
+use api_types::*;
 use datamodel::PfId;
 use sample_data::PCF_DEMO_DATA;
 use Either::Left;
@@ -64,95 +61,6 @@ fn oauth2_create_token(
     }
 }
 
-#[derive(FromForm)]
-struct FilterString<'r> {
-    _filter: &'r str,
-}
-
-impl<'r> schemars::JsonSchema for FilterString<'r> {
-    fn schema_name() -> String {
-        "FilterString".to_owned()
-    }
-
-    fn json_schema(_: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-        let mut schema = schemars::schema::SchemaObject::default();
-        schema.instance_type = Some(schemars::schema::InstanceType::String.into());
-        schema.string = Some(
-            schemars::schema::StringValidation {
-                min_length: Some(1),
-                ..Default::default()
-            }
-            .into(),
-        );
-        schema.metadata = Some(
-            schemars::schema::Metadata {
-                description: Some(
-                    "OData V4 conforming filter string. See Action ListFootprints's Request Syntax chapter".to_owned(),
-                ),
-                ..Default::default()
-            }
-            .into(),
-        );
-        schema.into()
-    }
-}
-
-#[derive(Debug, Responder)]
-enum PFCListingResponse {
-    Finished(Json<PCFListingResponse>),
-    Cont(Json<PCFListingResponse>, Header<'static>),
-}
-
-impl<'h> OpenApiResponderInner for PFCListingResponse {
-    fn responses(
-        gen: &mut rocket_okapi::gen::OpenApiGenerator,
-    ) -> rocket_okapi::Result<okapi::openapi3::Responses> {
-        use okapi::openapi3::RefOr;
-
-        let mut responses: okapi::openapi3::Responses = <Json<PCFListingResponse>>::responses(gen)?;
-
-        match &mut responses.responses["200"] {
-            RefOr::Object(response) => {
-                let header = openapi_link_header();
-                let header = RefOr::Object(header);
-                response.headers.insert("link".to_owned(), header);
-            }
-            _ => {
-                panic!("expected object");
-            }
-        }
-
-        Ok(responses)
-    }
-}
-
-fn openapi_link_header() -> okapi::openapi3::Header {
-    okapi::openapi3::Header {
-        description: Some(
-            "Link header to next result set. See Tech Specs section 6.6.1".to_owned(),
-        ),
-        value: okapi::openapi3::ParameterValue::Schema {
-            style: None,
-            explode: None,
-            allow_reserved: false,
-            example: Some(
-                "https://api.example.com/2/footprints?[...]"
-                    .to_owned()
-                    .into(),
-            ),
-            examples: None,
-            schema: okapi::openapi3::SchemaObject {
-                instance_type: Some(schemars::schema::InstanceType::String.into()),
-                ..Default::default()
-            },
-        },
-        required: false,
-        deprecated: false,
-        allow_empty_value: false,
-        extensions: Default::default(),
-    }
-}
-
 #[get("/0/footprints?<limit>&<offset>", format = "json")]
 fn get_list(
     auth: Option<UserToken>,
@@ -172,7 +80,7 @@ fn get_list(
     let limit = min(limit, max_limit);
 
     let next_offset = offset + limit;
-    let footprints = Json(PCFListingResponse {
+    let footprints = Json(PCFListingResponseInner {
         data: data[offset..offset + limit].to_vec(),
     });
 
@@ -310,7 +218,7 @@ fn get_list_test() {
 
         assert_eq!(rocket::http::Status::Ok, resp.status());
         assert_eq!(
-            PCFListingResponse {
+            PCFListingResponseInner {
                 data: PCF_DEMO_DATA.to_vec()
             },
             resp.into_json().unwrap()
@@ -352,7 +260,7 @@ fn get_list_with_limit_test() {
             link_header,
             format!("<https://api.example.com{expected_next_link1}>; rel=\"next\"")
         );
-        let json: PCFListingResponse = resp.into_json().unwrap();
+        let json: PCFListingResponseInner = resp.into_json().unwrap();
         assert_eq!(json.data.len(), 3);
     }
 
@@ -371,7 +279,7 @@ fn get_list_with_limit_test() {
             link_header,
             format!("<https://api.example.com{expected_next_link2}>; rel=\"next\"")
         );
-        let json: PCFListingResponse = resp.into_json().unwrap();
+        let json: PCFListingResponseInner = resp.into_json().unwrap();
         assert_eq!(json.data.len(), 3);
     }
 
@@ -383,7 +291,7 @@ fn get_list_with_limit_test() {
 
         assert_eq!(rocket::http::Status::Ok, resp.status());
         assert_eq!(resp.headers().get("link").next(), None);
-        let json: PCFListingResponse = resp.into_json().unwrap();
+        let json: PCFListingResponseInner = resp.into_json().unwrap();
         assert_eq!(json.data.len(), 2);
     }
 }
