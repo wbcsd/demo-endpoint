@@ -61,7 +61,7 @@ fn oauth2_create_token(
     }
 }
 
-#[get("/0/footprints?<limit>&<offset>", format = "json")]
+#[get("/2/footprints?<limit>&<offset>", format = "json")]
 fn get_list(
     auth: Option<UserToken>,
     limit: usize,
@@ -85,7 +85,7 @@ fn get_list(
     });
 
     if next_offset < data.len() {
-        let link = format!("<https://api.example.com/0/footprints?offset={next_offset}&limit={limit}>; rel=\"next\"");
+        let link = format!("<https://api.example.com/2/footprints?offset={next_offset}&limit={limit}>; rel=\"next\"");
         Left(PFCListingResponse::Cont(
             footprints,
             rocket::http::Header::new("link", link),
@@ -96,7 +96,7 @@ fn get_list(
 }
 
 #[openapi]
-#[get("/0/footprints?<limit>&<filter>", format = "json", rank = 2)]
+#[get("/2/footprints?<limit>&<filter>", format = "json", rank = 2)]
 fn get_footprints(
     auth: Option<UserToken>,
     limit: Option<usize>,
@@ -112,7 +112,7 @@ fn get_footprints(
 }
 
 #[openapi]
-#[get("/0/footprints/<id>", format = "json", rank = 1)]
+#[get("/2/footprints/<id>", format = "json", rank = 1)]
 fn get_pcf(
     id: PfId,
     auth: Option<UserToken>,
@@ -128,7 +128,7 @@ fn get_pcf(
     }
 }
 
-#[get("/0/footprints/<_id>", format = "json", rank = 2)]
+#[get("/2/footprints/<_id>", format = "json", rank = 2)]
 fn get_pcf_unauth(_id: &str) -> error::AccessDenied {
     Default::default()
 }
@@ -155,7 +155,7 @@ fn create_server() -> rocket::Rocket<rocket::Build> {
     rocket::build()
         .mount("/", openapi_routes)
         .mount("/", routes![get_list, get_pcf_unauth])
-        .mount("/0/auth", routes![oauth2_create_token])
+        .mount("/2/auth", routes![oauth2_create_token])
         .mount(
             "/swagger-ui/",
             make_swagger_ui(&SwaggerUIConfig {
@@ -207,7 +207,7 @@ fn get_list_test() {
     let bearer_token = format!("Bearer {jwt}");
     let client = &Client::tracked(create_server()).unwrap();
 
-    let get_list_uri = "/0/footprints";
+    let get_list_uri = "/2/footprints";
 
     // test auth
     {
@@ -241,9 +241,9 @@ fn get_list_with_limit_test() {
     let bearer_token = format!("Bearer {jwt}");
     let client = &Client::tracked(create_server()).unwrap();
 
-    let get_list_with_limit_uri = "/0/footprints?limit=3";
-    let expected_next_link1 = "/0/footprints?offset=3&limit=3";
-    let expected_next_link2 = "/0/footprints?offset=6&limit=3";
+    let get_list_with_limit_uri = "/2/footprints?limit=3";
+    let expected_next_link1 = "/2/footprints?offset=3&limit=3";
+    let expected_next_link2 = "/2/footprints?offset=6&limit=3";
 
     {
         let resp = client
@@ -307,7 +307,7 @@ fn get_pcf_test() {
 
     // test auth
     for pf in PCF_DEMO_DATA.iter() {
-        let get_pcf_uri = format!("/0/footprints/{}", pf.id.0);
+        let get_pcf_uri = format!("/2/footprints/{}", pf.id.0);
 
         let resp = client
             .get(get_pcf_uri.clone())
@@ -326,14 +326,14 @@ fn get_pcf_test() {
 
     // test unuath
     {
-        let get_pcf_uri = format!("/0/footprints/{}", PCF_DEMO_DATA[2].id.0);
+        let get_pcf_uri = format!("/2/footprints/{}", PCF_DEMO_DATA[2].id.0);
         let resp = client.get(get_pcf_uri).dispatch();
         assert_eq!(rocket::http::Status::Forbidden, resp.status());
     }
 
     // test malformed PCF ID
     {
-        let get_pcf_uri = "/0/footprints/abc";
+        let get_pcf_uri = "/2/footprints/abc";
         let resp = client
             .get(get_pcf_uri.clone())
             .header(rocket::http::Header::new(
@@ -345,7 +345,7 @@ fn get_pcf_test() {
     }
     // test unknown PCF ID
     {
-        let get_pcf_uri = "/0/footprints/16d8e365-698f-4694-bcad-a56e06a45afd";
+        let get_pcf_uri = "/2/footprints/16d8e365-698f-4694-bcad-a56e06a45afd";
         let resp = client
             .get(get_pcf_uri.clone())
             .header(rocket::http::Header::new("Authorization", bearer_token))
