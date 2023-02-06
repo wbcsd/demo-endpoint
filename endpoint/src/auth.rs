@@ -165,7 +165,7 @@ impl<'a> OpenApiFromRequest<'a> for UserToken {
             // In this case the header `Authorization: mytoken` needs to be set.
             data: SecuritySchemeData::OAuth2 {
                 flows: rocket_okapi::okapi::openapi3::OAuthFlows::ClientCredentials {
-                    token_url: "/0/auth/token".into(),
+                    token_url: "/2/auth/token".into(),
                     refresh_url: None,
                     scopes: map! {
                         "footprint:list".to_owned() => "Ability to list footprints".to_owned(),
