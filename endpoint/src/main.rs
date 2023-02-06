@@ -22,6 +22,7 @@ use either::Either;
 use lambda_web::{is_running_on_lambda, launch_rocket_on_lambda, LambdaError};
 use rocket::catch;
 use rocket::form::Form;
+use rocket::form::FromForm;
 use rocket::http::Header;
 use rocket::serde::json::Json;
 use rocket_okapi::rapidoc::{
@@ -60,6 +61,39 @@ fn oauth2_create_token(
         Either::Left(Json(reply))
     } else {
         Either::Right(Default::default())
+    }
+}
+
+#[derive(FromForm)]
+struct FilterString<'r> {
+    _filter: &'r str,
+}
+
+impl<'r> schemars::JsonSchema for FilterString<'r> {
+    fn schema_name() -> String {
+        "FilterString".to_owned()
+    }
+
+    fn json_schema(_: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        let mut schema = schemars::schema::SchemaObject::default();
+        schema.instance_type = Some(schemars::schema::InstanceType::String.into());
+        schema.string = Some(
+            schemars::schema::StringValidation {
+                min_length: Some(1),
+                ..Default::default()
+            }
+            .into(),
+        );
+        schema.metadata = Some(
+            schemars::schema::Metadata {
+                description: Some(
+                    "OData V4 conforming filter string. See Action ListFootprints's Request Syntax chapter".to_owned(),
+                ),
+                ..Default::default()
+            }
+            .into(),
+        );
+        schema.into()
     }
 }
 
@@ -154,13 +188,18 @@ fn get_list(
 }
 
 #[openapi]
-#[get("/0/footprints?<limit>", format = "json", rank = 2)]
+#[get("/0/footprints?<limit>&<filter>", format = "json", rank = 2)]
 fn get_footprints(
     auth: Option<UserToken>,
     limit: Option<usize>,
+    filter: Option<FilterString>,
 ) -> Either<PFCListingResponse, error::AccessDenied> {
+    // ignore that filter is not implemented as we cannot rename the function parameter
+    // as this would propagate through to the OpenAPI document
+    let _filter_is_ignored = filter;
     let limit = limit.unwrap_or(ACTION_LIST_FOOTPRINTS_MIN_RESULTS);
     let offset = 0;
+
     get_list(auth, limit, offset)
 }
 
