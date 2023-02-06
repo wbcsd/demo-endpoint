@@ -17,6 +17,7 @@ use rocket_okapi::{JsonSchema, OpenApiError};
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
 #[serde(crate = "rocket::serde")]
+/// Response with an error code of `NoSuchFootprint`. See Chapter "Error Codes" of the Tech Specs for mor details.
 pub(crate) struct NoSuchFootprint {
     pub(crate) message: &'static str,
     pub(crate) code: &'static str,
@@ -24,6 +25,7 @@ pub(crate) struct NoSuchFootprint {
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
 #[serde(crate = "rocket::serde")]
+/// Response with an error code of `AccessDenied`. See Chapter "Error Codes" of the Tech Specs for mor details.
 pub(crate) struct AccessDenied {
     pub(crate) message: &'static str,
     pub(crate) code: &'static str,
@@ -31,6 +33,7 @@ pub(crate) struct AccessDenied {
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
 #[serde(crate = "rocket::serde")]
+/// Response with an error code of `BadRequest`. See Chapter "Error Codes" of the Tech Specs for mor details.
 pub(crate) struct BadRequest {
     pub(crate) message: &'static str,
     pub(crate) code: &'static str,
