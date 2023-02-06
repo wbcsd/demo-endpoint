@@ -21,10 +21,19 @@ use uuid::Uuid;
 pub(crate) struct ProductFootprint {
     pub(crate) id: PfId,
     pub(crate) spec_version: SpecVersionString,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) preceding_pf_ids: Option<Vec<PfId>>,
     pub(crate) version: VersionInteger,
     pub(crate) created: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) updated: Option<DateTime<Utc>>,
+    pub(crate) status: PfStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) status_comment: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) validity_period_start: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) validity_period_end: Option<DateTime<Utc>>,
     pub(crate) company_name: NonEmptyString,
     pub(crate) company_ids: CompanyIdSet,
     pub(crate) product_description: String,
@@ -112,6 +121,13 @@ pub(crate) struct CarbonFootprint {
 #[serde(crate = "rocket::serde")]
 /// Data Type "PfId" of Spec Version 1
 pub(crate) struct PfId(pub(crate) Uuid);
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
+#[serde(crate = "rocket::serde")]
+pub(crate) enum PfStatus {
+    Active,
+    Deprecated,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, JsonSchema, PartialEq)]
 #[serde(crate = "rocket::serde")]
