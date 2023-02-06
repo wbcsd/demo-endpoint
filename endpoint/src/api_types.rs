@@ -20,9 +20,9 @@ pub(crate) struct FilterString<'r> {
 }
 
 #[derive(Debug, Responder)]
-pub(crate) enum PFCListingResponse {
-    Finished(Json<PCFListingResponseInner>),
-    Cont(Json<PCFListingResponseInner>, Header<'static>),
+pub(crate) enum PfListingResponse {
+    Finished(Json<PfListingResponseInner>),
+    Cont(Json<PfListingResponseInner>, Header<'static>),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
@@ -35,7 +35,7 @@ pub(crate) struct ProductFootprintResponse {
 #[derive(Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(crate = "rocket::serde", rename_all = "camelCase")]
 /// HTTP Body of Action `ListFootprints`
-pub(crate) struct PCFListingResponseInner {
+pub(crate) struct PfListingResponseInner {
     pub(crate) data: Vec<ProductFootprint>,
 }
 
@@ -94,14 +94,14 @@ impl<'r> schemars::JsonSchema for FilterString<'r> {
     }
 }
 
-impl OpenApiResponderInner for PFCListingResponse {
+impl OpenApiResponderInner for PfListingResponse {
     fn responses(
         gen: &mut rocket_okapi::gen::OpenApiGenerator,
     ) -> rocket_okapi::Result<okapi::openapi3::Responses> {
         use okapi::openapi3::RefOr;
 
         let mut responses: okapi::openapi3::Responses =
-            <Json<PCFListingResponseInner>>::responses(gen)?;
+            <Json<PfListingResponseInner>>::responses(gen)?;
 
         match &mut responses.responses["200"] {
             RefOr::Object(response) => {

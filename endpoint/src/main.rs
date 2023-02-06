@@ -66,7 +66,7 @@ fn get_list(
     auth: Option<UserToken>,
     limit: usize,
     offset: usize,
-) -> Either<PFCListingResponse, error::AccessDenied> {
+) -> Either<PfListingResponse, error::AccessDenied> {
     if auth.is_none() {
         return Either::Right(Default::default());
     }
@@ -80,18 +80,18 @@ fn get_list(
     let limit = min(limit, max_limit);
 
     let next_offset = offset + limit;
-    let footprints = Json(PCFListingResponseInner {
+    let footprints = Json(PfListingResponseInner {
         data: data[offset..offset + limit].to_vec(),
     });
 
     if next_offset < data.len() {
         let link = format!("<https://api.example.com/2/footprints?offset={next_offset}&limit={limit}>; rel=\"next\"");
-        Left(PFCListingResponse::Cont(
+        Left(PfListingResponse::Cont(
             footprints,
             rocket::http::Header::new("link", link),
         ))
     } else {
-        Left(PFCListingResponse::Finished(footprints))
+        Left(PfListingResponse::Finished(footprints))
     }
 }
 
@@ -101,7 +101,7 @@ fn get_footprints(
     auth: Option<UserToken>,
     limit: Option<usize>,
     filter: Option<FilterString>,
-) -> Either<PFCListingResponse, error::AccessDenied> {
+) -> Either<PfListingResponse, error::AccessDenied> {
     // ignore that filter is not implemented as we cannot rename the function parameter
     // as this would propagate through to the OpenAPI document
     let _filter_is_ignored = filter;
@@ -218,7 +218,7 @@ fn get_list_test() {
 
         assert_eq!(rocket::http::Status::Ok, resp.status());
         assert_eq!(
-            PCFListingResponseInner {
+            PfListingResponseInner {
                 data: PCF_DEMO_DATA.to_vec()
             },
             resp.into_json().unwrap()
@@ -260,7 +260,7 @@ fn get_list_with_limit_test() {
             link_header,
             format!("<https://api.example.com{expected_next_link1}>; rel=\"next\"")
         );
-        let json: PCFListingResponseInner = resp.into_json().unwrap();
+        let json: PfListingResponseInner = resp.into_json().unwrap();
         assert_eq!(json.data.len(), 3);
     }
 
@@ -279,7 +279,7 @@ fn get_list_with_limit_test() {
             link_header,
             format!("<https://api.example.com{expected_next_link2}>; rel=\"next\"")
         );
-        let json: PCFListingResponseInner = resp.into_json().unwrap();
+        let json: PfListingResponseInner = resp.into_json().unwrap();
         assert_eq!(json.data.len(), 3);
     }
 
@@ -291,7 +291,7 @@ fn get_list_with_limit_test() {
 
         assert_eq!(rocket::http::Status::Ok, resp.status());
         assert_eq!(resp.headers().get("link").next(), None);
-        let json: PCFListingResponseInner = resp.into_json().unwrap();
+        let json: PfListingResponseInner = resp.into_json().unwrap();
         assert_eq!(json.data.len(), 2);
     }
 }
