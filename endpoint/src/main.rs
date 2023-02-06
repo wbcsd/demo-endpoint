@@ -67,7 +67,7 @@ fn get_list(
     limit: usize,
     offset: usize,
 ) -> Either<PFCListingResponse, error::AccessDenied> {
-    if !auth.is_some() {
+    if auth.is_none() {
         return Either::Right(Default::default());
     }
 
