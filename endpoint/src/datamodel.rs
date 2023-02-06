@@ -22,7 +22,7 @@ pub(crate) struct ProductFootprint {
     pub(crate) id: PfId,
     pub(crate) spec_version: SpecVersionString,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) preceding_pf_ids: Option<Vec<PfId>>,
+    pub(crate) preceding_pf_ids: Option<NonEmptyPfIdVec>,
     pub(crate) version: VersionInteger,
     pub(crate) created: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -195,6 +195,10 @@ pub(crate) struct NonEmptyString(String);
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "rocket::serde")]
 pub(crate) struct NonEmptyStringVec(pub(crate) Vec<NonEmptyString>);
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(crate = "rocket::serde")]
+pub(crate) struct NonEmptyPfIdVec(pub(crate) Vec<PfId>);
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "rocket::serde")]
@@ -428,6 +432,12 @@ impl From<Vec<NonEmptyString>> for NonEmptyStringVec {
     }
 }
 
+impl From<Vec<PfId>> for NonEmptyPfIdVec {
+    fn from(v: Vec<PfId>) -> Self {
+        NonEmptyPfIdVec(v)
+    }
+}
+
 impl From<String> for Urn {
     fn from(s: String) -> Urn {
         Urn(s)
@@ -468,6 +478,16 @@ impl JsonSchema for NonEmptyStringVec {
 
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> Schema {
         json_set_schema::<NonEmptyString>(gen, Some(1))
+    }
+}
+
+impl JsonSchema for NonEmptyPfIdVec {
+    fn schema_name() -> String {
+        "NonEmptyPfIdVec".into()
+    }
+
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> Schema {
+        json_set_schema::<PfId>(gen, Some(1))
     }
 }
 

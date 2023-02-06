@@ -65,7 +65,7 @@ fn base() -> ProductFootprint {
     ProductFootprint {
         spec_version: String::from("1.0.0").into(),
         id: PfId(uuid!("d9be4477-e351-45b3-acd9-e1da05e6f633")),
-        preceding_pf_ids: None,
+        preceding_pf_ids: Some(vec![PfId(uuid!("c3028ee9-d595-4779-a73a-290bfa7505d6"))].into()),
         version: VersionInteger(0),
         created: *CREATED_AT,
         updated: None,
