@@ -225,7 +225,7 @@ fn test_pathfinder_event_deser() {
     // test deserialization with a reference string
     {
         let event2: PathfinderEvent = rocket::serde::json::from_str(
-            &r#"{
+            r#"{
             "type": "org.wbcsd.pathfinder.ProductFootprint.Published.v1",
             "specversion": "1.0",
             "id": "123",

@@ -141,7 +141,7 @@ fn post_event(
 ) -> EventsApiResponse {
     let _auth = auth; // ignore auth is not used;
 
-    println!("data = {:#?}", event);
+    println!("data = {event:#?}");
 
     let res = if let Some(event) = event {
         match event.data {
@@ -154,7 +154,7 @@ fn post_event(
         EventsApiResponse::BadReq(error::BadRequest::default())
     };
 
-    println!("returning with: {:#?}", res);
+    println!("returning with: {res:#?}");
 
     res
 }
