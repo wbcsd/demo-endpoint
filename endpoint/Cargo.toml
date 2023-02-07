@@ -10,7 +10,7 @@ path = "src/main.rs"
 [dependencies]
 lazy_static = "1.4.0"
 jsonwebtoken = "7.2.0"
-rocket_okapi = { version = "0.8.0-alpha-1", features = [ "swagger", "secrets", "rapidoc" ] }
+rocket_okapi = { version = "0.8.0-rc.2", features = [ "swagger", "secrets", "rapidoc" ] }
 chrono = { version = "0.4", features = [ "serde" ] }
 schemars = { version = "0.8", features = [ "chrono" ] }
 rust_decimal = "^1.20"

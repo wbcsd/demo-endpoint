@@ -39,6 +39,14 @@ pub(crate) struct BadRequest {
     pub(crate) code: &'static str,
 }
 
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
+#[serde(crate = "rocket::serde")]
+/// Response with an error code of `NotImplemented`. See Chapter "Error Codes" of the Tech Specs for mor details.
+pub(crate) struct NotImplemented {
+    pub(crate) message: &'static str,
+    pub(crate) code: &'static str,
+}
+
 impl Default for AccessDenied {
     fn default() -> Self {
         Self {
@@ -62,6 +70,15 @@ impl Default for NoSuchFootprint {
         NoSuchFootprint {
             message: "The specified footprint does not exist",
             code: "NoSuchFootprint",
+        }
+    }
+}
+
+impl Default for NotImplemented {
+    fn default() -> Self {
+        NotImplemented {
+            message: "Not Implemented",
+            code: "NotImplemented",
         }
     }
 }
@@ -93,6 +110,15 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for BadRequest {
     }
 }
 
+impl<'r, 'o: 'r> Responder<'r, 'o> for NotImplemented {
+    fn respond_to(self, request: &'r Request<'_>) -> response::Result<'o> {
+        Response::build()
+            .merge(Json(self).respond_to(request)?)
+            .status(Status::BadRequest)
+            .ok()
+    }
+}
+
 impl OpenApiResponderInner for BadRequest {
     fn responses(gen: &mut OpenApiGenerator) -> Result<Responses, OpenApiError> {
         let resp = openapi_response::<BadRequest>(
@@ -101,6 +127,21 @@ impl OpenApiResponderInner for BadRequest {
             "\
             # 400 Bad Request\n\
             The request given is wrongly formatted or data was missing. \
+            "
+            .to_owned(),
+        );
+        Ok(resp)
+    }
+}
+
+impl OpenApiResponderInner for NotImplemented {
+    fn responses(gen: &mut OpenApiGenerator) -> Result<Responses, OpenApiError> {
+        let resp = openapi_response::<BadRequest>(
+            gen,
+            "501".to_owned(),
+            "\
+            # 501 Not Implemented\n\
+            The request given is not implemented by the server. \
             "
             .to_owned(),
         );
