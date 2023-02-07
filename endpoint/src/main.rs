@@ -69,11 +69,13 @@ pub struct Host<'r>(Option<&'r str>);
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for Host<'r> {
-	type Error = ();
+    type Error = ();
 
-	async fn from_request(request: &'r rocket::Request<'_>) -> rocket::request::Outcome<Self, Self::Error> {
-		rocket::request::Outcome::Success(Host(request.headers().get("Host").next()))
-	}
+    async fn from_request(
+        request: &'r rocket::Request<'_>,
+    ) -> rocket::request::Outcome<Self, Self::Error> {
+        rocket::request::Outcome::Success(Host(request.headers().get("Host").next()))
+    }
 }
 
 #[get("/2/footprints?<limit>&<offset>", format = "json")]
@@ -101,7 +103,10 @@ fn get_list(
     });
 
     if next_offset < data.len() {
-        let host = host.0.map(|host| format!("https://{host}")).unwrap_or_default();
+        let host = host
+            .0
+            .map(|host| format!("https://{host}"))
+            .unwrap_or_default();
         let link =
             format!("<{host}/2/footprints?offset={next_offset}&limit={limit}>; rel=\"next\"");
         Left(PfListingResponse::Cont(
