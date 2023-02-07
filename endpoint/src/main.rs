@@ -22,6 +22,7 @@ use either::Either;
 use lambda_web::{is_running_on_lambda, launch_rocket_on_lambda, LambdaError};
 use rocket::catch;
 use rocket::form::Form;
+use rocket::request::FromRequest;
 use rocket::serde::json::Json;
 use rocket_okapi::rapidoc::{
     make_rapidoc, GeneralConfig, HideShowConfig, RapiDocConfig, Theme, UiConfig,
@@ -40,6 +41,8 @@ use rocket::local::blocking::Client;
 
 // minimum number of results to return from Action `ListFootprints`
 const ACTION_LIST_FOOTPRINTS_MIN_RESULTS: usize = 10;
+
+const EXAMPLE_HOST: &str = "api.example.com";
 
 /// endpoint to create an oauth2 client credentials grant (RFC 6749 4.4)
 #[post("/token", data = "<body>")]
@@ -61,11 +64,24 @@ fn oauth2_create_token(
     }
 }
 
+#[derive(Debug)]
+pub struct Host<'r>(Option<&'r str>);
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for Host<'r> {
+	type Error = ();
+
+	async fn from_request(request: &'r rocket::Request<'_>) -> rocket::request::Outcome<Self, Self::Error> {
+		rocket::request::Outcome::Success(Host(request.headers().get("Host").next()))
+	}
+}
+
 #[get("/2/footprints?<limit>&<offset>", format = "json")]
 fn get_list(
     auth: Option<UserToken>,
     limit: usize,
     offset: usize,
+    host: Host,
 ) -> Either<PfListingResponse, error::AccessDenied> {
     if auth.is_none() {
         return Either::Right(Default::default());
@@ -85,7 +101,9 @@ fn get_list(
     });
 
     if next_offset < data.len() {
-        let link = format!("<https://api.example.com/2/footprints?offset={next_offset}&limit={limit}>; rel=\"next\"");
+        let host = host.0.map(|host| format!("https://{host}")).unwrap_or_default();
+        let link =
+            format!("<{host}/2/footprints?offset={next_offset}&limit={limit}>; rel=\"next\"");
         Left(PfListingResponse::Cont(
             footprints,
             rocket::http::Header::new("link", link),
@@ -108,7 +126,7 @@ fn get_footprints(
     let limit = limit.unwrap_or(ACTION_LIST_FOOTPRINTS_MIN_RESULTS);
     let offset = 0;
 
-    get_list(auth, limit, offset)
+    get_list(auth, limit, offset, Host(Some(EXAMPLE_HOST)))
 }
 
 #[openapi]
@@ -245,6 +263,7 @@ fn get_list_test() {
         let resp = client
             .get(get_list_uri.clone())
             .header(rocket::http::Header::new("Authorization", bearer_token))
+            .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
             .dispatch();
 
         assert_eq!(rocket::http::Status::Ok, resp.status());
@@ -258,7 +277,10 @@ fn get_list_test() {
 
     // test unauth
     {
-        let resp = client.get(get_list_uri).dispatch();
+        let resp = client
+            .get(get_list_uri)
+            .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
+            .dispatch();
         assert_eq!(rocket::http::Status::Forbidden, resp.status());
     }
 }
@@ -283,6 +305,7 @@ fn get_list_with_limit_test() {
                 "Authorization",
                 bearer_token.clone(),
             ))
+            .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
             .dispatch();
 
         assert_eq!(rocket::http::Status::Ok, resp.status());
@@ -302,6 +325,7 @@ fn get_list_with_limit_test() {
                 "Authorization",
                 bearer_token.clone(),
             ))
+            .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
             .dispatch();
 
         assert_eq!(rocket::http::Status::Ok, resp.status());
@@ -318,6 +342,7 @@ fn get_list_with_limit_test() {
         let resp = client
             .get(expected_next_link2)
             .header(rocket::http::Header::new("Authorization", bearer_token))
+            .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
             .dispatch();
 
         assert_eq!(rocket::http::Status::Ok, resp.status());
