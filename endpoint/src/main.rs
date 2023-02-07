@@ -133,6 +133,37 @@ fn get_pcf_unauth(_id: &str) -> error::AccessDenied {
     Default::default()
 }
 
+#[openapi]
+#[post("/2/events", data = "<event>", format = "json")]
+fn post_event(
+    auth: UserToken,
+    event: Option<rocket::serde::json::Json<PathfinderEvent>>,
+) -> EventsApiResponse {
+    let _auth = auth; // ignore auth is not used;
+
+    println!("data = {:#?}", event);
+
+    let res = if let Some(event) = event {
+        match event.data {
+            PathfinderEventData::PFUpdateEvent(_) => EventsApiResponse::Ok(()),
+            PathfinderEventData::PFRequestEvent(_) => {
+                EventsApiResponse::NotImpl(Default::default())
+            }
+        }
+    } else {
+        EventsApiResponse::BadReq(error::BadRequest::default())
+    };
+
+    println!("returning with: {:#?}", res);
+
+    res
+}
+
+#[post("/2/events", rank = 2)]
+fn post_event_fallback() -> EventsApiResponse {
+    EventsApiResponse::NoAuth(error::AccessDenied::default())
+}
+
 #[catch(400)]
 fn bad_request() -> error::BadRequest {
     Default::default()
@@ -148,13 +179,13 @@ const OPENAPI_PATH: &str = "../openapi.json";
 fn create_server() -> rocket::Rocket<rocket::Build> {
     let settings = OpenApiSettings::default();
     let (mut openapi_routes, openapi_spec) =
-        openapi_get_routes_spec![settings: get_pcf, get_footprints];
+        openapi_get_routes_spec![settings: get_pcf, get_footprints, post_event];
 
     openapi_routes.push(get_openapi_route(openapi_spec, &settings));
 
     rocket::build()
         .mount("/", openapi_routes)
-        .mount("/", routes![get_list, get_pcf_unauth])
+        .mount("/", routes![get_list, get_pcf_unauth, post_event_fallback])
         .mount("/2/auth", routes![oauth2_create_token])
         .mount(
             "/swagger-ui/",
@@ -293,6 +324,64 @@ fn get_list_with_limit_test() {
         assert_eq!(resp.headers().get("link").next(), None);
         let json: PfListingResponseInner = resp.into_json().unwrap();
         assert_eq!(json.data.len(), 2);
+    }
+}
+
+#[test]
+fn post_events_test() {
+    let token = UserToken {
+        username: "hello".to_string(),
+    };
+    let jwt = auth::encode_token(&token).ok().unwrap();
+    let bearer_token = format!("Bearer {jwt}");
+    let client = &Client::tracked(create_server()).unwrap();
+
+    let post_events_uri = "/2/events";
+
+    // test GET request to POST endpoint
+    {
+        let resp = client
+            .get(post_events_uri.clone())
+            .header(rocket::http::Header::new(
+                "Authorization",
+                bearer_token.clone(),
+            ))
+            .dispatch();
+        assert_eq!(rocket::http::Status::Forbidden, resp.status());
+    }
+
+    // test unauth request
+    {
+        let resp = client.post(post_events_uri.clone()).dispatch();
+        assert_eq!(rocket::http::Status::Forbidden, resp.status());
+    }
+
+    // test authenticated request with OK body
+    {
+        use chrono::prelude::*;
+        use uuid::uuid;
+        let time = Utc.ymd(2022, 05, 31).and_hms(17, 31, 00);
+        let event = PathfinderEvent {
+            specversion: "1.0".to_owned(),
+            id: "123".to_owned(),
+            source: "https://example.com".to_owned(),
+            time,
+            data: PathfinderEventData::PFUpdateEvent(
+                PFUpdateEventBody {
+                    pf_ids: vec![
+                        PfId(uuid!("52B87062-1506-455C-B521-5212212959A8")),
+                        PfId(uuid!("8C5D709E-F3A0-4B90-889D-91BF2A68FA19")),
+                    ],
+                }
+                .into(),
+            ),
+        };
+        let resp = client
+            .post(post_events_uri.clone())
+            .header(rocket::http::Header::new("Authorization", bearer_token))
+            .json(&event)
+            .dispatch();
+        assert_eq!(rocket::http::Status::Ok, resp.status());
     }
 }
 
