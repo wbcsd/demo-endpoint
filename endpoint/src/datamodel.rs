@@ -17,7 +17,7 @@ use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
 #[serde(crate = "rocket::serde", rename_all = "camelCase")]
-/// Data Type "ProductFootprint" of Spec Version 1
+/// Data Type "ProductFootprint" of Tech Spec Version 2
 pub(crate) struct ProductFootprint {
     pub(crate) id: PfId,
     pub(crate) spec_version: SpecVersionString,
@@ -47,7 +47,7 @@ pub(crate) struct ProductFootprint {
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
 #[serde(crate = "rocket::serde", rename_all = "camelCase")]
-/// Data Type "CarbonFootprint" of Spec Version 1
+/// Data Type "CarbonFootprint" of Spec Version 2
 pub(crate) struct CarbonFootprint {
     pub(crate) declared_unit: DeclaredUnit,
     pub(crate) unitary_product_amount: StrictlyPositiveDecimal,
@@ -119,7 +119,7 @@ pub(crate) struct CarbonFootprint {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "rocket::serde")]
-/// Data Type "PfId" of Spec Version 1
+/// Data Type "PfId" of Spec Version 2
 pub(crate) struct PfId(pub(crate) Uuid);
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
@@ -131,7 +131,7 @@ pub(crate) enum PfStatus {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, JsonSchema, PartialEq)]
 #[serde(crate = "rocket::serde")]
-/// Data Type "DeclaredUnit" of Spec Version 1
+/// Data Type "DeclaredUnit" of Spec Version 2
 pub(crate) enum DeclaredUnit {
     #[serde(rename = "liter")]
     Liter,
@@ -151,7 +151,7 @@ pub(crate) enum DeclaredUnit {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, JsonSchema, PartialEq)]
 #[serde(crate = "rocket::serde")]
-/// Data Type "CrossSectoralStandard" of Spec Version 1
+/// Data Type "CrossSectoralStandard" of Spec Version 2
 pub(crate) enum CrossSectoralStandard {
     #[serde(rename = "GHG Protocol Product standard")]
     Ghgp,
@@ -181,7 +181,7 @@ pub(crate) struct WrappedDecimal(Decimal);
 /// a f64 in the 0..100 range
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "rocket::serde", rename_all = "camelCase")]
-/// Data Type "Percent" of Spec Version 1
+/// Data Type "Percent" of Spec Version 2
 pub(crate) struct Percent(f64);
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -202,17 +202,17 @@ pub(crate) struct NonEmptyPfIdVec(pub(crate) Vec<PfId>);
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "rocket::serde")]
-/// Data Type "CompanyIdSet" of Spec Version 1
+/// Data Type "CompanyIdSet" of Spec Version 2
 pub(crate) struct CompanyIdSet(pub(crate) Vec<Urn>);
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "rocket::serde")]
-/// Data Type "ProductIdSet" of Spec Version 1
+/// Data Type "ProductIdSet" of Spec Version 2
 pub(crate) struct ProductIdSet(pub(crate) Vec<Urn>);
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "rocket::serde")]
-/// Data Type "EmissionFactorDSSet" of Spec Version 1
+/// Data Type "EmissionFactorDSSet" of Spec Version 2
 pub(crate) struct EmissionFactorDSSet(pub(crate) Vec<EmissionFactorDS>);
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -225,13 +225,13 @@ pub(crate) struct SpecVersionString(pub(crate) String);
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "rocket::serde", rename_all = "camelCase")]
-/// Data Type "VersionInteger" of Spec Version 1
+/// Data Type "VersionInteger" of Spec Version 2
 pub(crate) struct VersionInteger(pub(crate) i32);
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
 #[serde(crate = "rocket::serde", rename_all = "camelCase")]
 #[serde(untagged)]
-/// Encoded geographic scope rules of a Spec Version 1 `CarbonFootprint`
+/// Encoded geographic scope rules of a Spec Version 2 `CarbonFootprint`
 pub(crate) enum GeographicScope {
     Global,
     #[serde(rename_all = "camelCase")]
@@ -326,7 +326,7 @@ pub(crate) struct ProductOrSectorSpecificRule {
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
 #[serde(crate = "rocket::serde", rename_all = "camelCase")]
-// Data Type "EmissionFactorDS" of Spec version 1
+// Data Type "EmissionFactorDS" of Spec Version 2
 pub(crate) struct EmissionFactorDS {
     pub(crate) name: NonEmptyString,
     pub(crate) version: NonEmptyString,
