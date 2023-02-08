@@ -1,3 +1,11 @@
+use std::collections::HashMap;
+
+use axum::body::{Bytes, HttpBody};
+use axum::extract::multipart::MultipartRejection;
+use axum::extract::{FromRequest, FromRequestParts};
+use axum::http::request::Parts;
+use axum::http::{Request, StatusCode};
+use axum::{async_trait, BoxError};
 /*
  * Copyright (c) Martin Pompéry
  *
@@ -8,8 +16,9 @@ use jsonwebtoken::errors::Result;
 use jsonwebtoken::TokenData;
 use jsonwebtoken::{DecodingKey, EncodingKey};
 use jsonwebtoken::{Header, Validation};
+use serde::{Deserialize, Serialize};
 
-use rocket::http::Status;
+/*use rocket::http::Status;
 use rocket::outcome::Outcome;
 use rocket::request::{self, FromRequest, Request};
 use rocket::response::status;
@@ -22,10 +31,10 @@ use rocket_okapi::okapi::openapi3::{
 use rocket_okapi::{
     gen::OpenApiGenerator,
     request::{OpenApiFromRequest, RequestHeaderInput},
-};
+};*/
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(crate = "rocket::serde", rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct UserToken {
     pub username: String,
 }
@@ -37,14 +46,12 @@ pub struct OAuth2ClientCredentials {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(crate = "rocket::serde")]
 pub enum OAuth2TokenType {
     #[serde(rename = "bearer")]
     Bearer,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(crate = "rocket::serde")]
 pub struct OAuth2TokenReply {
     pub access_token: String,
     pub token_type: OAuth2TokenType,
@@ -52,11 +59,86 @@ pub struct OAuth2TokenReply {
     //pub expires_in: u32,
 }
 
-#[derive(rocket::form::FromForm)]
-pub struct OAuth2ClientCredentialsBody<'r> {
-    pub grant_type: &'r str,
-    pub scope: Option<&'r str>,
+#[derive(Debug)]
+pub struct OAuth2ClientCredentialsBody {
+    pub grant_type: String,
+    pub scope: Option<String>,
 }
+
+/*
+while let Some(mut field) = body.next_field().await.unwrap() {
+        let name = field.name().unwrap().to_string();
+        let data = field.bytes().await.unwrap();
+
+        println!("Length of `{}` is {} bytes", name, data.len());
+    } */
+
+#[async_trait]
+impl<S, B> FromRequest<S, B> for OAuth2ClientCredentialsBody
+where
+    S: Send + Sync,
+    B: HttpBody + Send + 'static,
+    B::Data: Into<Bytes>,
+    B::Error: Into<BoxError>,
+{
+    type Rejection = StatusCode;
+
+    async fn from_request(
+        req: Request<B>,
+        state: &S,
+    ) -> std::result::Result<Self, Self::Rejection> {
+        if let Ok(mut multipart) = axum::extract::Multipart::from_request(req, state).await {
+            let mut fields = HashMap::new();
+            while let Some(field) = multipart
+                .next_field()
+                .await
+                .or(Err(StatusCode::BAD_REQUEST))?
+            {
+                let name = field.name().unwrap_or_default().to_string();
+                let data = field.text().await.or(Err(StatusCode::BAD_REQUEST))?;
+
+                fields.insert(name, data);
+            }
+            if let Some(grant_type) = fields.get("grant_type") {
+                return Ok(OAuth2ClientCredentialsBody {
+                    grant_type: grant_type.clone(),
+                    scope: fields.get("scope").cloned(),
+                });
+            }
+        }
+        Err(StatusCode::BAD_REQUEST)
+    }
+}
+
+/*#[async_trait]
+    impl<S, B> FromRequest<S, B> for OAuth2ClientCredentialsBody
+    where
+        S: Send + Sync,
+    {
+    type Rejection = StatusCode;
+
+    /*async fn from_request(
+        parts: &mut Parts,
+        state: &S,
+    ) -> std::result::Result<Self, Self::Rejection> {
+        if let Some(auth_header) = parts.headers.get("Authorization") {
+            if let Ok(auth_header) = auth_header.to_str() {
+                let split = auth_header.split_whitespace().collect::<Vec<_>>();
+                if split.len() != 2 {
+                    return Err(StatusCode::BAD_REQUEST);
+                }
+                let (basic, payload) = (split[0], split[1]);
+                if basic != "Basic" {
+                    return Err(StatusCode::UNAUTHORIZED);
+                }
+                if let Some(credentials) = decode_basic_auth(payload) {
+                    return Ok(credentials);
+                }
+            }
+        }
+        Err(StatusCode::BAD_REQUEST)
+    }*/
+}*/
 
 #[derive(Debug)]
 pub enum UserTokenError {
@@ -65,7 +147,7 @@ pub enum UserTokenError {
     Missing,
 }
 
-#[rocket::async_trait]
+/*
 impl<'r> FromRequest<'r> for OAuth2ClientCredentials {
     type Error = ();
 
@@ -86,6 +168,36 @@ impl<'r> FromRequest<'r> for OAuth2ClientCredentials {
 
         Outcome::Failure((Status::BadRequest, ()))
     }
+}*/
+
+#[async_trait]
+impl<S> FromRequestParts<S> for OAuth2ClientCredentials
+where
+    S: Send + Sync,
+{
+    type Rejection = StatusCode;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        _state: &S,
+    ) -> std::result::Result<Self, Self::Rejection> {
+        if let Some(auth_header) = parts.headers.get("Authorization") {
+            if let Ok(auth_header) = auth_header.to_str() {
+                let split = auth_header.split_whitespace().collect::<Vec<_>>();
+                if split.len() != 2 {
+                    return Err(StatusCode::BAD_REQUEST);
+                }
+                let (basic, payload) = (split[0], split[1]);
+                if basic != "Basic" {
+                    return Err(StatusCode::UNAUTHORIZED);
+                }
+                if let Some(credentials) = decode_basic_auth(payload) {
+                    return Ok(credentials);
+                }
+            }
+        }
+        Err(StatusCode::BAD_REQUEST)
+    }
 }
 
 fn decode_basic_auth(raw_auth_info: &str) -> Option<OAuth2ClientCredentials> {
@@ -105,7 +217,7 @@ fn decode_basic_auth(raw_auth_info: &str) -> Option<OAuth2ClientCredentials> {
     None
 }
 
-#[rocket::async_trait]
+/*#[rocket::async_trait]
 impl<'r> FromRequest<'r> for UserToken {
     type Error = status::Custom<UserTokenError>;
 
@@ -132,7 +244,7 @@ impl<'r> FromRequest<'r> for UserToken {
             ))
         }
     }
-}
+}*/
 
 const MY_NOT_SO_SECRET_KEY: &[u8; 8] = b"abcdefgh";
 
@@ -152,7 +264,7 @@ pub fn encode_token(u: &UserToken) -> Result<String> {
     )
 }
 
-impl<'a> OpenApiFromRequest<'a> for UserToken {
+/*impl<'a> OpenApiFromRequest<'a> for UserToken {
     fn from_request_input(
         _gen: &mut OpenApiGenerator,
         _name: String,
@@ -199,4 +311,4 @@ fn decode_basic_auth_test() {
         }),
         decode_basic_auth(&base64::encode(b"martin:secret"))
     );
-}
+}*/

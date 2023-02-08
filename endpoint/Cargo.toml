@@ -10,23 +10,27 @@ path = "src/main.rs"
 [dependencies]
 lazy_static = "1.4.0"
 jsonwebtoken = "7.2.0"
-rocket_okapi = { version = "0.8.0-rc.2", features = [ "swagger", "secrets", "rapidoc" ] }
-chrono = { version = "0.4", features = [ "serde" ] }
-schemars = { version = "0.8", features = [ "chrono" ] }
+# rocket_okapi = { version = "0.8.0-rc.2", features = [ "swagger", "secrets", "rapidoc" ] }
+chrono = { version = "0.4", features = ["serde"] }
+schemars = { version = "0.8", features = ["chrono"] }
 rust_decimal = "^1.20"
 rust_decimal_macros = "^1.20"
 either = "1.5"
 okapi = "0.7.0-rc.1"
 base64 = "0.13"
+lambda-web = { version = "0.2.0", features = ["hyper"] }
+axum = { version = "0.6", features = ["multipart"] }
+tokio = { version = "1" }
+serde = { version = "1.0", features = ["derive"] }
 
-[dependencies.lambda-web]
-version = "0.1.8"
-features = ["rocket05"]
+# [dependencies.lambda-web]
+# version = "0.1.8"
+# features = ["rocket05"]
 
-[dependencies.rocket]
-version = "0.5.0-rc.1"
-features = [ "json" ]
+# [dependencies.rocket]
+# version = "0.5.0-rc.1"
+# features = [ "json" ]
 
 [dependencies.uuid]
 version = "1.1"
-features = [ "v4", "serde" ]
+features = ["v4", "serde"]

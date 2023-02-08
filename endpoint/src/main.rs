@@ -5,22 +5,18 @@
  * LICENSE file in the crate's root directory of this source tree.
  */
 #[macro_use]
-extern crate rocket;
-
-#[macro_use]
 extern crate lazy_static;
-mod api_types;
+//mod api_types;
 mod auth;
-mod datamodel;
-mod error;
-mod sample_data;
+//mod datamodel;
+//mod error;
+//mod sample_data;
 
 use std::cmp::min;
 
 use auth::UserToken;
 use either::Either;
-use lambda_web::{is_running_on_lambda, launch_rocket_on_lambda, LambdaError};
-use rocket::catch;
+/*use rocket::catch;
 use rocket::form::Form;
 use rocket::request::FromRequest;
 use rocket::serde::json::Json;
@@ -29,15 +25,16 @@ use rocket_okapi::rapidoc::{
 };
 use rocket_okapi::settings::{OpenApiSettings, UrlObject};
 use rocket_okapi::swagger_ui::{make_swagger_ui, SwaggerUIConfig};
-use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};
+use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};*/
 
-use api_types::*;
-use datamodel::PfId;
-use sample_data::PCF_DEMO_DATA;
-use Either::Left;
+//use api_types::*;
+//use datamodel::PfId;
+//use error::AccessDenied;
+//use sample_data::PCF_DEMO_DATA;
+//use Either::Left;
 
-#[cfg(test)]
-use rocket::local::blocking::Client;
+/*#[cfg(test)]
+use rocket::local::blocking::Client;*/
 
 // minimum number of results to return from Action `ListFootprints`
 const ACTION_LIST_FOOTPRINTS_MIN_RESULTS: usize = 10;
@@ -45,7 +42,7 @@ const ACTION_LIST_FOOTPRINTS_MIN_RESULTS: usize = 10;
 const EXAMPLE_HOST: &str = "api.example.com";
 
 /// endpoint to create an oauth2 client credentials grant (RFC 6749 4.4)
-#[post("/token", data = "<body>")]
+/*#[post("/token", data = "<body>")]
 fn oauth2_create_token(
     req: auth::OAuth2ClientCredentials,
     body: Form<auth::OAuth2ClientCredentialsBody<'_>>,
@@ -62,9 +59,9 @@ fn oauth2_create_token(
     } else {
         Either::Right(Default::default())
     }
-}
+}*/
 
-#[derive(Debug)]
+/*#[derive(Debug)]
 pub struct Host<'r>(Option<&'r str>);
 
 #[rocket::async_trait]
@@ -195,11 +192,11 @@ fn bad_request() -> error::BadRequest {
 #[catch(default)]
 fn default_handler() -> error::AccessDenied {
     Default::default()
-}
+}*/
 
 const OPENAPI_PATH: &str = "../openapi.json";
 
-fn create_server() -> rocket::Rocket<rocket::Build> {
+/*fn create_server() -> rocket::Rocket<rocket::Build> {
     let settings = OpenApiSettings::default();
     let (mut openapi_routes, openapi_spec) =
         openapi_get_routes_spec![settings: get_pcf, get_footprints, post_event];
@@ -237,9 +234,9 @@ fn create_server() -> rocket::Rocket<rocket::Build> {
             }),
         )
         .register("/", catchers![bad_request, default_handler])
-}
+}*/
 
-#[rocket::main]
+/*#[rocket::main]
 async fn main() -> Result<(), LambdaError> {
     let rocket = create_server();
     if is_running_on_lambda() {
@@ -250,9 +247,72 @@ async fn main() -> Result<(), LambdaError> {
         let _ = rocket.launch().await?;
     }
     Ok(())
+}*/
+
+use axum::{
+    http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
+    routing::{get, post},
+    Json, Router,
+};
+use lambda_web::{is_running_on_lambda, run_hyper_on_lambda, LambdaError};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
+/// Response with an error code of `AccessDenied`. See Chapter "Error Codes" of the Tech Specs for mor details.
+pub(crate) struct AccessDenied {
+    pub(crate) message: &'static str,
+    pub(crate) code: &'static str,
 }
 
-#[test]
+impl Default for AccessDenied {
+    fn default() -> Self {
+        Self {
+            message: "Access Denied",
+            code: "AccessDenied",
+        }
+    }
+}
+
+async fn oauth2_create_token(
+    auth: auth::OAuth2ClientCredentials,
+    body: auth::OAuth2ClientCredentialsBody,
+) -> Response {
+    if auth.id == "hello" && auth.secret == "pathfinder" {
+        let access_token = auth::encode_token(&auth::UserToken { username: auth.id }).unwrap();
+
+        let reply = auth::OAuth2TokenReply {
+            access_token,
+            token_type: auth::OAuth2TokenType::Bearer,
+            scope: body.scope.map(String::from),
+        };
+        (StatusCode::OK, Json(reply)).into_response()
+    } else {
+        (StatusCode::FORBIDDEN, Json(AccessDenied::default())).into_response()
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), LambdaError> {
+    // build our application with a route
+    let app = Router::new().route("/token", post(oauth2_create_token));
+
+    if is_running_on_lambda() {
+        // Run app on AWS Lambda
+        run_hyper_on_lambda(app).await?;
+    } else {
+        // Run app on local server
+        let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+        axum::Server::bind(&addr)
+            .serve(app.into_make_service())
+            .await?;
+    }
+    Ok(())
+}
+
+/*#[test]
 fn get_list_test() {
     let token = UserToken {
         username: "hello".to_string(),
@@ -471,4 +531,4 @@ fn get_pcf_test() {
             .dispatch();
         assert_eq!(rocket::http::Status::Forbidden, resp.status());
     }
-}
+}*/
