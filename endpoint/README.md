@@ -1,6 +1,6 @@
-# Endpoint implementation of Use Case 001 Specification Version 1
+# Endpoint implementation of Technical Specifications for PCF Data Exchange (Version 2.0.0 - Consultation Draft)
 
-A beta-quality implementation of the HTTP REST API of Use Case 001 Specification version 1.
+A yet incomplete beta-quality implementation of the HTTP REST API of the [Technical Specifications for PCF Data Exchange](https://wbcsd.github.io/data-exchange-protocol/v2/)
 
 ## Status
 
@@ -17,9 +17,10 @@ For details on the backlog, please see [BACKLOG.md](BACKLOG.md).
 The following endpoints are available:
 
 - Endpoints from Use Case 001 Specification Version 1
-  - `/0/footprints` implementing the `ListFootprints` action
-  - `/0/footprints/<footprint-id>` implementing the `GetFootprint` action
-  - `/0/auth/token` implementing `Authenticate` action
+  - `/2/footprints` implementing the `ListFootprints` action
+  - `/2/footprints/<footprint-id>` implementing the `GetFootprint` action
+  - `/2/events` implementing the `Events` action
+  - `/2/auth/token` implementing `Authenticate` action
 - Additional endpoints are:
   - `/openapi.json`: OpenAPI description file which is automatically generated from the types defined in [`api_types.rs`](src/api_types.rs) and endpoints defined in [`main.rs`](src/main.rs)
   - Swagger UI: `/swagger-ui/` if you fancy a visualization 
