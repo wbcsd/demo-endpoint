@@ -19,8 +19,8 @@ use rocket_okapi::OpenApiError;
 use schemars::JsonSchema;
 
 #[derive(FromForm)]
-pub(crate) struct FilterString<'r> {
-    _filter: &'r str,
+pub(crate) struct FilterString {
+    _filter: String,
 }
 
 #[derive(Debug, Responder)]
@@ -134,7 +134,7 @@ fn openapi_link_header() -> okapi::openapi3::Header {
     }
 }
 
-impl<'r> schemars::JsonSchema for FilterString<'r> {
+impl schemars::JsonSchema for FilterString {
     fn schema_name() -> String {
         "FilterString".to_owned()
     }

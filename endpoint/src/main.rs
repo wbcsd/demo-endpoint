@@ -16,28 +16,35 @@ mod error;
 mod sample_data;
 
 use std::cmp::min;
+use std::collections::HashMap;
+use std::convert::Infallible;
 
 use auth::UserToken;
 use either::Either;
 use lambda_web::{is_running_on_lambda, launch_rocket_on_lambda, LambdaError};
-use rocket::catch;
+use rocket::fairing::AdHoc;
 use rocket::form::Form;
 use rocket::request::FromRequest;
 use rocket::serde::json::Json;
+use rocket::serde::Deserialize;
+use rocket::{catch, State};
 use rocket_okapi::rapidoc::{
     make_rapidoc, GeneralConfig, HideShowConfig, RapiDocConfig, Theme, UiConfig,
 };
+use rocket_okapi::request::OpenApiFromRequest;
 use rocket_okapi::settings::{OpenApiSettings, UrlObject};
 use rocket_okapi::swagger_ui::{make_swagger_ui, SwaggerUIConfig};
 use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};
 
 use api_types::*;
-use datamodel::PfId;
+use datamodel::{PfId, ProductFootprint};
 use sample_data::PCF_DEMO_DATA;
 use Either::Left;
 
 #[cfg(test)]
 use rocket::local::blocking::Client;
+#[cfg(test)]
+use std::fs;
 
 // minimum number of results to return from Action `ListFootprints`
 const ACTION_LIST_FOOTPRINTS_MIN_RESULTS: usize = 10;
@@ -47,10 +54,19 @@ const EXAMPLE_HOST: &str = "api.example.com";
 /// endpoint to create an oauth2 client credentials grant (RFC 6749 4.4)
 #[post("/token", data = "<body>")]
 fn oauth2_create_token(
+    config: &State<Config>,
     req: auth::OAuth2ClientCredentials,
     body: Form<auth::OAuth2ClientCredentialsBody<'_>>,
 ) -> Either<Json<auth::OAuth2TokenReply>, error::AccessDenied> {
-    if req.id == "hello" && req.secret == "pathfinder" {
+    let mut credentials = HashMap::new();
+    if let Some(tenants) = &config.tenants {
+        for tenant in tenants {
+            credentials.insert(tenant.id.as_str(), tenant.secret.as_str());
+        }
+    } else {
+        credentials.insert("hello", "pathfinder");
+    }
+    if credentials.get(&req.id.as_str()) == Some(&req.secret.as_str()) {
         let access_token = auth::encode_token(&auth::UserToken { username: req.id }).unwrap();
 
         let reply = auth::OAuth2TokenReply {
@@ -65,35 +81,83 @@ fn oauth2_create_token(
 }
 
 #[derive(Debug)]
-pub struct Host<'r>(Option<&'r str>);
+pub struct Host(Option<String>);
 
 #[rocket::async_trait]
-impl<'r> FromRequest<'r> for Host<'r> {
+impl<'r> FromRequest<'r> for Host {
     type Error = ();
 
     async fn from_request(
         request: &'r rocket::Request<'_>,
     ) -> rocket::request::Outcome<Self, Self::Error> {
-        rocket::request::Outcome::Success(Host(request.headers().get("Host").next()))
+        rocket::request::Outcome::Success(Host(
+            request.headers().get("Host").next().map(str::to_string),
+        ))
     }
 }
 
+#[derive(Debug)]
+pub struct ReqPath(String);
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for ReqPath {
+    type Error = Infallible;
+
+    async fn from_request(
+        request: &'r rocket::Request<'_>,
+    ) -> rocket::request::Outcome<Self, Self::Error> {
+        rocket::request::Outcome::Success(ReqPath(request.uri().path().to_string()))
+    }
+}
+
+impl<'r> OpenApiFromRequest<'r> for ReqPath {
+    fn from_request_input(
+        _gen: &mut rocket_okapi::gen::OpenApiGenerator,
+        _name: String,
+        _required: bool,
+    ) -> rocket_okapi::Result<rocket_okapi::request::RequestHeaderInput> {
+        Ok(rocket_okapi::request::RequestHeaderInput::None)
+    }
+}
+
+async fn get_pcf_data<'r>(path: ReqPath, tenants: &Option<Vec<Tenant>>) -> Vec<ProductFootprint> {
+    if let Some(tenants) = tenants {
+        for tenant in tenants {
+            if !path.0.starts_with(&format!("/{}/", tenant.id)) {
+                continue;
+            }
+            if let Some(data_path) = &tenant.data_path {
+                match tokio::fs::read(data_path).await {
+                    Ok(buf) => match serde_json::from_slice::<Vec<ProductFootprint>>(&buf) {
+                        Ok(data) => return data,
+                        Err(e) => println!("{data_path} is not a valid ProductFootprint JSON: {e}"),
+                    },
+                    Err(e) => println!("Could not read {data_path}: {e}"),
+                }
+            }
+        }
+    }
+    PCF_DEMO_DATA.clone()
+}
+
 #[get("/2/footprints?<limit>&<offset>", format = "json")]
-fn get_list(
+async fn get_list(
+    config: &State<Config>,
     auth: Option<UserToken>,
     limit: usize,
     offset: usize,
     host: Host,
+    path: ReqPath,
 ) -> Either<PfListingResponse, error::AccessDenied> {
+    let data = get_pcf_data(path, &config.tenants).await;
     if auth.is_none() {
         return Either::Right(Default::default());
     }
 
-    if offset >= PCF_DEMO_DATA.len() {
+    if offset >= data.len() {
         return Either::Right(Default::default());
     }
 
-    let data = &PCF_DEMO_DATA;
     let max_limit = data.len() - offset;
     let limit = min(limit, max_limit);
 
@@ -120,10 +184,12 @@ fn get_list(
 
 #[openapi]
 #[get("/2/footprints?<limit>&<filter>", format = "json", rank = 2)]
-fn get_footprints(
+async fn get_footprints(
+    config: &State<Config>,
     auth: Option<UserToken>,
     limit: Option<usize>,
     filter: Option<FilterString>,
+    path: ReqPath,
 ) -> Either<PfListingResponse, error::AccessDenied> {
     // ignore that filter is not implemented as we cannot rename the function parameter
     // as this would propagate through to the OpenAPI document
@@ -131,18 +197,28 @@ fn get_footprints(
     let limit = limit.unwrap_or(ACTION_LIST_FOOTPRINTS_MIN_RESULTS);
     let offset = 0;
 
-    get_list(auth, limit, offset, Host(Some(EXAMPLE_HOST)))
+    get_list(
+        config,
+        auth,
+        limit,
+        offset,
+        Host(Some(EXAMPLE_HOST.to_string())),
+        path,
+    )
+    .await
 }
 
 #[openapi]
 #[get("/2/footprints/<id>", format = "json", rank = 1)]
-fn get_pcf(
+async fn get_pcf(
+    config: &State<Config>,
     id: PfId,
     auth: Option<UserToken>,
+    path: ReqPath,
 ) -> Either<Json<ProductFootprintResponse>, error::AccessDenied> {
     if auth.is_some() {
-        PCF_DEMO_DATA
-            .iter()
+        let data = get_pcf_data(path, &config.tenants).await;
+        data.iter()
             .find(|pf| pf.id == id)
             .map(|pcf| Left(Json(ProductFootprintResponse { data: pcf.clone() })))
             .unwrap_or_else(|| Either::Right(Default::default()))
@@ -199,6 +275,20 @@ fn default_handler() -> error::AccessDenied {
 
 const OPENAPI_PATH: &str = "../openapi.json";
 
+#[derive(Debug, Deserialize, Default)]
+#[serde(crate = "rocket::serde")]
+struct Config {
+    tenants: Option<Vec<Tenant>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(crate = "rocket::serde")]
+struct Tenant {
+    id: String,
+    secret: String,
+    data_path: Option<String>,
+}
+
 fn create_server() -> rocket::Rocket<rocket::Build> {
     let settings = OpenApiSettings::default();
     let (mut openapi_routes, openapi_spec) =
@@ -206,10 +296,12 @@ fn create_server() -> rocket::Rocket<rocket::Build> {
 
     openapi_routes.push(get_openapi_route(openapi_spec, &settings));
 
-    rocket::build()
-        .mount("/", openapi_routes)
-        .mount("/", routes![get_list, get_pcf_unauth, post_event_fallback])
-        .mount("/2/auth", routes![oauth2_create_token])
+    let mut rocket = rocket::build();
+    let figment = rocket.figment();
+
+    let config: Config = figment.extract().unwrap_or_default();
+
+    rocket = rocket
         .mount(
             "/swagger-ui/",
             make_swagger_ui(&SwaggerUIConfig {
@@ -235,7 +327,24 @@ fn create_server() -> rocket::Rocket<rocket::Build> {
                 },
                 ..Default::default()
             }),
-        )
+        );
+    let non_openapi_routes = routes![get_list, get_pcf_unauth, post_event_fallback];
+    if let Some(tenants) = config.tenants {
+        for tenant in tenants {
+            let name = tenant.id;
+            rocket = rocket
+                .mount(format!("/{name}/"), openapi_routes.clone())
+                .mount(format!("/{name}/"), non_openapi_routes.clone())
+                .mount(format!("/{name}/2/auth"), routes![oauth2_create_token]);
+        }
+    } else {
+        rocket = rocket
+            .mount("/", openapi_routes)
+            .mount("/", non_openapi_routes)
+            .mount("/2/auth", routes![oauth2_create_token]);
+    }
+    rocket
+        .attach(AdHoc::config::<Config>())
         .register("/", catchers![bad_request, default_handler])
 }
 
@@ -468,6 +577,50 @@ fn get_pcf_test() {
         let resp = client
             .get(get_pcf_uri.clone())
             .header(rocket::http::Header::new("Authorization", bearer_token))
+            .dispatch();
+        assert_eq!(rocket::http::Status::Forbidden, resp.status());
+    }
+}
+
+#[test]
+fn multitenant_get_list_test() {
+    let token = UserToken {
+        username: "foo".to_string(),
+    };
+    let jwt = auth::encode_token(&token).ok().unwrap();
+    let bearer_token = format!("Bearer {jwt}");
+
+    let _ = fs::rename("Rocket.test.toml", "Rocket.toml");
+    let client = &Client::tracked(create_server()).unwrap();
+    let _ = fs::rename("Rocket.toml", "Rocket.test.toml");
+
+    let get_list_uri = "/foo/2/footprints";
+
+    let buf = &fs::read("example_pcf_data.json").unwrap();
+    let expected_demo_data: Vec<ProductFootprint> = serde_json::from_slice(buf).unwrap();
+
+    // test auth
+    {
+        let resp = client
+            .get(get_list_uri.clone())
+            .header(rocket::http::Header::new("Authorization", bearer_token))
+            .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
+            .dispatch();
+
+        assert_eq!(rocket::http::Status::Ok, resp.status());
+        assert_eq!(
+            PfListingResponseInner {
+                data: expected_demo_data
+            },
+            resp.into_json().unwrap()
+        );
+    }
+
+    // test unauth
+    {
+        let resp = client
+            .get(get_list_uri)
+            .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
             .dispatch();
         assert_eq!(rocket::http::Status::Forbidden, resp.status());
     }
