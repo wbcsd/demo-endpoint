@@ -130,9 +130,9 @@ async fn get_pcf_data<'r>(path: ReqPath, tenants: &Option<Vec<Tenant>>) -> Vec<P
                 match tokio::fs::read(data_path).await {
                     Ok(buf) => match serde_json::from_slice::<Vec<ProductFootprint>>(&buf) {
                         Ok(data) => return data,
-                        Err(e) => println!("{data_path} is not a valid ProductFootprint JSON: {e}"),
+                        Err(e) => log::error!("{data_path} is not a valid ProductFootprint JSON: {e}"),
                     },
-                    Err(e) => println!("Could not read {data_path}: {e}"),
+                    Err(e) => log::error!("Could not read {data_path}: {e}"),
                 }
             }
         }

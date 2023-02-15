@@ -20,6 +20,7 @@ okapi = "0.7.0-rc.1"
 base64 = "0.13"
 tokio = "1.25.0"
 serde_json = "1.0"
+log = "0.4.17"
 
 [dependencies.lambda-web]
 version = "0.1.8"
