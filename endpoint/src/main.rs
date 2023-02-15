@@ -60,8 +60,8 @@ fn oauth2_create_token(
 ) -> Either<Json<auth::OAuth2TokenReply>, error::AccessDenied> {
     let mut credentials = HashMap::new();
     if let Some(tenants) = &config.tenants {
-        for tenant in tenants {
-            credentials.insert(tenant.id.as_str(), tenant.secret.as_str());
+        for (name, tenant) in tenants {
+            credentials.insert(name.as_str(), tenant.secret.as_str());
         }
     } else {
         credentials.insert("hello", "pathfinder");
@@ -120,10 +120,10 @@ impl<'r> OpenApiFromRequest<'r> for ReqPath {
     }
 }
 
-async fn get_pcf_data<'r>(path: ReqPath, tenants: &Option<Vec<Tenant>>) -> Vec<ProductFootprint> {
+async fn get_pcf_data<'r>(path: ReqPath, tenants: &Option<HashMap<String, Tenant>>) -> Vec<ProductFootprint> {
     if let Some(tenants) = tenants {
-        for tenant in tenants {
-            if !path.0.starts_with(&format!("/{}/", tenant.id)) {
+        for (name, tenant) in tenants {
+            if !path.0.starts_with(&format!("/{name}/")) {
                 continue;
             }
             if let Some(data_path) = &tenant.data_path {
@@ -278,13 +278,12 @@ const OPENAPI_PATH: &str = "../openapi.json";
 #[derive(Debug, Deserialize, Default)]
 #[serde(crate = "rocket::serde")]
 struct Config {
-    tenants: Option<Vec<Tenant>>,
+    tenants: Option<HashMap<String, Tenant>>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(crate = "rocket::serde")]
 struct Tenant {
-    id: String,
     secret: String,
     data_path: Option<String>,
 }
@@ -330,8 +329,7 @@ fn create_server() -> rocket::Rocket<rocket::Build> {
         );
     let non_openapi_routes = routes![get_list, get_pcf_unauth, post_event_fallback];
     if let Some(tenants) = config.tenants {
-        for tenant in tenants {
-            let name = tenant.id;
+        for name in tenants.keys() {
             rocket = rocket
                 .mount(format!("/{name}/"), openapi_routes.clone())
                 .mount(format!("/{name}/"), non_openapi_routes.clone())

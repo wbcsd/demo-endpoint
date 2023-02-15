@@ -1,8 +1,6 @@
-[[default.tenants]]
-id = "foo"
+[default.tenants.foo]
 secret = "pathfinder1"
 data_path = "example_pcf_data.json"
 
-[[default.tenants]]
-id = "bar"
+[default.tenants.bar]
 secret = "pathfinder2"
