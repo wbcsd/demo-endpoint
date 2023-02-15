@@ -17,7 +17,6 @@ mod sample_data;
 
 use std::cmp::min;
 use std::collections::HashMap;
-use std::convert::Infallible;
 
 use auth::UserToken;
 use either::Either;
@@ -31,7 +30,6 @@ use rocket::{catch, State};
 use rocket_okapi::rapidoc::{
     make_rapidoc, GeneralConfig, HideShowConfig, RapiDocConfig, Theme, UiConfig,
 };
-use rocket_okapi::request::OpenApiFromRequest;
 use rocket_okapi::settings::{OpenApiSettings, UrlObject};
 use rocket_okapi::swagger_ui::{make_swagger_ui, SwaggerUIConfig};
 use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};
@@ -43,8 +41,6 @@ use Either::Left;
 
 #[cfg(test)]
 use rocket::local::blocking::Client;
-#[cfg(test)]
-use std::fs;
 
 // minimum number of results to return from Action `ListFootprints`
 const ACTION_LIST_FOOTPRINTS_MIN_RESULTS: usize = 10;
@@ -96,41 +92,19 @@ impl<'r> FromRequest<'r> for Host {
     }
 }
 
-#[derive(Debug)]
-pub struct ReqPath(String);
-
-#[rocket::async_trait]
-impl<'r> FromRequest<'r> for ReqPath {
-    type Error = Infallible;
-
-    async fn from_request(
-        request: &'r rocket::Request<'_>,
-    ) -> rocket::request::Outcome<Self, Self::Error> {
-        rocket::request::Outcome::Success(ReqPath(request.uri().path().to_string()))
-    }
-}
-
-impl<'r> OpenApiFromRequest<'r> for ReqPath {
-    fn from_request_input(
-        _gen: &mut rocket_okapi::gen::OpenApiGenerator,
-        _name: String,
-        _required: bool,
-    ) -> rocket_okapi::Result<rocket_okapi::request::RequestHeaderInput> {
-        Ok(rocket_okapi::request::RequestHeaderInput::None)
-    }
-}
-
-async fn get_pcf_data<'r>(path: ReqPath, tenants: &Option<HashMap<String, Tenant>>) -> Vec<ProductFootprint> {
+async fn get_pcf_data<'r>(
+    tenants: &Option<HashMap<String, Tenant>>,
+    username: &String,
+) -> Vec<ProductFootprint> {
     if let Some(tenants) = tenants {
-        for (name, tenant) in tenants {
-            if !path.0.starts_with(&format!("/{name}/")) {
-                continue;
-            }
+        if let Some(tenant) = tenants.get(username) {
             if let Some(data_path) = &tenant.data_path {
                 match tokio::fs::read(data_path).await {
                     Ok(buf) => match serde_json::from_slice::<Vec<ProductFootprint>>(&buf) {
                         Ok(data) => return data,
-                        Err(e) => log::error!("{data_path} is not a valid ProductFootprint JSON: {e}"),
+                        Err(e) => {
+                            log::error!("{data_path} is not a valid ProductFootprint JSON: {e}")
+                        }
                     },
                     Err(e) => log::error!("Could not read {data_path}: {e}"),
                 }
@@ -147,12 +121,14 @@ async fn get_list(
     limit: usize,
     offset: usize,
     host: Host,
-    path: ReqPath,
 ) -> Either<PfListingResponse, error::AccessDenied> {
-    let data = get_pcf_data(path, &config.tenants).await;
-    if auth.is_none() {
-        return Either::Right(Default::default());
-    }
+    let username = match auth {
+        Some(auth) => auth.username,
+        None => {
+            return Either::Right(Default::default());
+        }
+    };
+    let data = get_pcf_data(&config.tenants, &username).await;
 
     if offset >= data.len() {
         return Either::Right(Default::default());
@@ -189,7 +165,6 @@ async fn get_footprints(
     auth: Option<UserToken>,
     limit: Option<usize>,
     filter: Option<FilterString>,
-    path: ReqPath,
 ) -> Either<PfListingResponse, error::AccessDenied> {
     // ignore that filter is not implemented as we cannot rename the function parameter
     // as this would propagate through to the OpenAPI document
@@ -203,7 +178,6 @@ async fn get_footprints(
         limit,
         offset,
         Host(Some(EXAMPLE_HOST.to_string())),
-        path,
     )
     .await
 }
@@ -214,17 +188,18 @@ async fn get_pcf(
     config: &State<Config>,
     id: PfId,
     auth: Option<UserToken>,
-    path: ReqPath,
 ) -> Either<Json<ProductFootprintResponse>, error::AccessDenied> {
-    if auth.is_some() {
-        let data = get_pcf_data(path, &config.tenants).await;
-        data.iter()
-            .find(|pf| pf.id == id)
-            .map(|pcf| Left(Json(ProductFootprintResponse { data: pcf.clone() })))
-            .unwrap_or_else(|| Either::Right(Default::default()))
-    } else {
-        Either::Right(Default::default())
-    }
+    let username = match auth {
+        Some(auth) => auth.username,
+        None => {
+            return Either::Right(Default::default());
+        }
+    };
+    let data = get_pcf_data(&config.tenants, &username).await;
+    data.iter()
+        .find(|pf| pf.id == id)
+        .map(|pcf| Left(Json(ProductFootprintResponse { data: pcf.clone() })))
+        .unwrap_or_else(|| Either::Right(Default::default()))
 }
 
 #[get("/2/footprints/<_id>", format = "json", rank = 2)]
@@ -295,12 +270,9 @@ fn create_server() -> rocket::Rocket<rocket::Build> {
 
     openapi_routes.push(get_openapi_route(openapi_spec, &settings));
 
-    let mut rocket = rocket::build();
-    let figment = rocket.figment();
+    let non_openapi_routes = routes![get_list, get_pcf_unauth, post_event_fallback];
 
-    let config: Config = figment.extract().unwrap_or_default();
-
-    rocket = rocket
+    rocket::build()
         .mount(
             "/swagger-ui/",
             make_swagger_ui(&SwaggerUIConfig {
@@ -326,22 +298,10 @@ fn create_server() -> rocket::Rocket<rocket::Build> {
                 },
                 ..Default::default()
             }),
-        );
-    let non_openapi_routes = routes![get_list, get_pcf_unauth, post_event_fallback];
-    if let Some(tenants) = config.tenants {
-        for name in tenants.keys() {
-            rocket = rocket
-                .mount(format!("/{name}/"), openapi_routes.clone())
-                .mount(format!("/{name}/"), non_openapi_routes.clone())
-                .mount(format!("/{name}/2/auth"), routes![oauth2_create_token]);
-        }
-    } else {
-        rocket = rocket
-            .mount("/", openapi_routes)
-            .mount("/", non_openapi_routes)
-            .mount("/2/auth", routes![oauth2_create_token]);
-    }
-    rocket
+        )
+        .mount("/", openapi_routes)
+        .mount("/", non_openapi_routes)
+        .mount("/2/auth", routes![oauth2_create_token])
         .attach(AdHoc::config::<Config>())
         .register("/", catchers![bad_request, default_handler])
 }
@@ -588,13 +548,11 @@ fn multitenant_get_list_test() {
     let jwt = auth::encode_token(&token).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
 
-    let _ = fs::rename("Rocket.test.toml", "Rocket.toml");
     let client = &Client::tracked(create_server()).unwrap();
-    let _ = fs::rename("Rocket.toml", "Rocket.test.toml");
 
-    let get_list_uri = "/foo/2/footprints";
+    let get_list_uri = "/2/footprints";
 
-    let buf = &fs::read("example_pcf_data.json").unwrap();
+    let buf = &std::fs::read("example_pcf_data.json").unwrap();
     let expected_demo_data: Vec<ProductFootprint> = serde_json::from_slice(buf).unwrap();
 
     // test auth
