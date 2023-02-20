@@ -37,6 +37,7 @@ pub(crate) struct PfListingResponseInner {
     pub(crate) data: Vec<ProductFootprint>,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Responder, Debug)]
 pub(crate) enum ProductFootprintApiResponse {
     #[response(status = 200, content_type = "application/json")]
