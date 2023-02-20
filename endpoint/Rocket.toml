@@ -4,3 +4,7 @@ data_path = "example_pcf_data.json"
 
 [default.tenants.bar]
 secret = "pathfinder2"
+
+[default.tenants.foobar]
+secret = "pathfinder2"
+data_path = "this_does_not_exist.json"

@@ -94,23 +94,30 @@ impl<'r> FromRequest<'r> for Host {
 async fn get_pcf_data<'r>(
     tenants: &Option<HashMap<String, Tenant>>,
     username: &String,
-) -> Vec<ProductFootprint> {
+) -> Result<Vec<ProductFootprint>, String> {
     if let Some(tenants) = tenants {
         if let Some(tenant) = tenants.get(username) {
             if let Some(data_path) = &tenant.data_path {
                 match tokio::fs::read(data_path).await {
                     Ok(buf) => match serde_json::from_slice::<Vec<ProductFootprint>>(&buf) {
-                        Ok(data) => return data,
+                        Ok(data) => return Ok(data),
                         Err(e) => {
-                            log::error!("{data_path} is not a valid ProductFootprint JSON: {e}")
+                            let msg =
+                                format!("{data_path} is not a valid ProductFootprint JSON: {e}");
+                            log::error!("{msg}");
+                            return Err(msg);
                         }
                     },
-                    Err(e) => log::error!("Could not read {data_path}: {e}"),
+                    Err(e) => {
+                        let msg = format!("Could not read {data_path}: {e}");
+                        log::error!("{msg}");
+                        return Err(msg);
+                    }
                 }
             }
         }
     }
-    PCF_DEMO_DATA.clone()
+    Ok(PCF_DEMO_DATA.clone())
 }
 
 #[get("/2/footprints?<limit>&<offset>", format = "json")]
@@ -127,7 +134,12 @@ async fn get_list(
             return PfListingApiResponse::NoAuth(Default::default());
         }
     };
-    let data = get_pcf_data(&config.tenants, &username).await;
+    let data = match get_pcf_data(&config.tenants, &username).await {
+        Ok(data) => data,
+        Err(e) => {
+            return PfListingApiResponse::ServerError(error::InternalError::custom(e));
+        }
+    };
 
     if offset >= data.len() {
         return PfListingApiResponse::BadReq(Default::default());
@@ -191,7 +203,12 @@ async fn get_pcf(
             return ProductFootprintApiResponse::NoAuth(Default::default());
         }
     };
-    let data = get_pcf_data(&config.tenants, &username).await;
+    let data = match get_pcf_data(&config.tenants, &username).await {
+        Ok(data) => data,
+        Err(e) => {
+            return ProductFootprintApiResponse::ServerError(error::InternalError::custom(e));
+        }
+    };
     let footprint = data
         .iter()
         .find(|pf| pf.id == id)
@@ -580,5 +597,91 @@ fn multitenant_get_list_test() {
             .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
             .dispatch();
         assert_eq!(rocket::http::Status::Forbidden, resp.status());
+    }
+}
+
+#[test]
+fn multitenant_get_pcf_test() {
+    let token = UserToken {
+        username: "foo".to_string(),
+    };
+    let jwt = auth::encode_token(&token).ok().unwrap();
+    let bearer_token = format!("Bearer {jwt}");
+
+    let client = &Client::tracked(create_server()).unwrap();
+
+    let buf = &std::fs::read("example_pcf_data.json").unwrap();
+    let expected_demo_data: Vec<ProductFootprint> = serde_json::from_slice(buf).unwrap();
+
+    // test auth
+    for pf in expected_demo_data.iter() {
+        let get_pcf_uri = format!("/2/footprints/{}", pf.id.0);
+        let resp = client
+            .get(get_pcf_uri.clone())
+            .header(rocket::http::Header::new(
+                "Authorization",
+                bearer_token.clone(),
+            ))
+            .dispatch();
+
+        assert_eq!(rocket::http::Status::Ok, resp.status());
+        assert_eq!(
+            ProductFootprintResponse { data: pf.clone() },
+            resp.into_json().unwrap()
+        );
+    }
+    
+    // test unuath
+    {
+        let get_pcf_uri = format!("/2/footprints/{}", PCF_DEMO_DATA[2].id.0);
+        let resp = client.get(get_pcf_uri).dispatch();
+        assert_eq!(rocket::http::Status::Forbidden, resp.status());
+    }
+
+    // test malformed PCF ID
+    {
+        let get_pcf_uri = "/2/footprints/abc";
+        let resp = client
+            .get(get_pcf_uri.clone())
+            .header(rocket::http::Header::new(
+                "Authorization",
+                bearer_token.clone(),
+            ))
+            .dispatch();
+        assert_eq!(rocket::http::Status::Forbidden, resp.status());
+    }
+    // test unknown PCF ID
+    {
+        let get_pcf_uri = "/2/footprints/16d8e365-698f-4694-bcad-a56e06a45afd";
+        let resp = client
+            .get(get_pcf_uri.clone())
+            .header(rocket::http::Header::new("Authorization", bearer_token))
+            .dispatch();
+        assert_eq!(rocket::http::Status::Forbidden, resp.status());
+    }
+}
+
+#[test]
+fn multitenant_get_list_test_with_missing_json() {
+    let token = UserToken {
+        username: "foobar".to_string(),
+    };
+    let jwt = auth::encode_token(&token).ok().unwrap();
+    let bearer_token = format!("Bearer {jwt}");
+
+    let client = &Client::tracked(create_server()).unwrap();
+
+    let get_list_uri = "/2/footprints";
+
+    // test auth
+    {
+        let resp = client
+            .get(get_list_uri.clone())
+            .header(rocket::http::Header::new("Authorization", bearer_token))
+            .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
+            .dispatch();
+
+        assert_eq!(rocket::http::Status::InternalServerError, resp.status());
+        assert!(resp.into_string().unwrap().contains("Could not read this_does_not_exist.json: No such file or directory"));
     }
 }

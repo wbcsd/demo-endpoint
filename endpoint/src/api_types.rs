@@ -43,6 +43,8 @@ pub(crate) enum ProductFootprintApiResponse {
     Ok(Json<ProductFootprintResponse>),
     #[response(status = 403, content_type = "application/json")]
     NoAuth(crate::error::AccessDenied),
+    #[response(status = 500, content_type = "application/json")]
+    ServerError(crate::error::InternalError),
 }
 
 #[derive(Responder, Debug)]
@@ -55,6 +57,8 @@ pub(crate) enum PfListingApiResponse {
     BadReq(crate::error::BadRequest),
     #[response(status = 403, content_type = "application/json")]
     NoAuth(crate::error::AccessDenied),
+    #[response(status = 500, content_type = "application/json")]
+    ServerError(crate::error::InternalError),
 }
 
 #[derive(Responder, JsonSchema, Debug)]
@@ -196,6 +200,7 @@ impl OpenApiResponderInner for PfListingApiResponse {
                 },
                 "400".to_owned() => crate::error::BadRequest::responses(gen)?.responses["400"].clone(),
                 "403".to_owned() => crate::error::AccessDenied::responses(gen)?.responses["403"].clone(),
+                "500".to_owned() => crate::error::InternalError::responses(gen)?.responses["500"].clone(),
             },
             ..Default::default()
         })
@@ -209,6 +214,7 @@ impl OpenApiResponderInner for ProductFootprintApiResponse {
                 "200".to_owned() => <()>::responses(gen)?.responses["200"].clone(),
                 "403".to_owned() => crate::error::AccessDenied::responses(gen)?.responses["403"].clone(),
                 "404".to_owned() => crate::error::NoSuchFootprint::responses(gen)?.responses["404"].clone(),
+                "500".to_owned() => crate::error::InternalError::responses(gen)?.responses["500"].clone(),
             },
             ..Default::default()
         })
