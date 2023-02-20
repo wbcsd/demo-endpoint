@@ -37,7 +37,6 @@ use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};
 use api_types::*;
 use datamodel::{PfId, ProductFootprint};
 use sample_data::PCF_DEMO_DATA;
-use Either::Left;
 
 #[cfg(test)]
 use rocket::local::blocking::Client;
@@ -121,17 +120,17 @@ async fn get_list(
     limit: usize,
     offset: usize,
     host: Host,
-) -> Either<PfListingResponse, error::AccessDenied> {
+) -> PfListingApiResponse {
     let username = match auth {
         Some(auth) => auth.username,
         None => {
-            return Either::Right(Default::default());
+            return PfListingApiResponse::NoAuth(Default::default());
         }
     };
     let data = get_pcf_data(&config.tenants, &username).await;
 
     if offset >= data.len() {
-        return Either::Right(Default::default());
+        return PfListingApiResponse::BadReq(Default::default());
     }
 
     let max_limit = data.len() - offset;
@@ -149,12 +148,9 @@ async fn get_list(
             .unwrap_or_default();
         let link =
             format!("<{host}/2/footprints?offset={next_offset}&limit={limit}>; rel=\"next\"");
-        Left(PfListingResponse::Cont(
-            footprints,
-            rocket::http::Header::new("link", link),
-        ))
+        PfListingApiResponse::Cont(footprints, rocket::http::Header::new("link", link))
     } else {
-        Left(PfListingResponse::Finished(footprints))
+        PfListingApiResponse::Finished(footprints)
     }
 }
 
@@ -165,7 +161,7 @@ async fn get_footprints(
     auth: Option<UserToken>,
     limit: Option<usize>,
     filter: Option<FilterString>,
-) -> Either<PfListingResponse, error::AccessDenied> {
+) -> PfListingApiResponse {
     // ignore that filter is not implemented as we cannot rename the function parameter
     // as this would propagate through to the OpenAPI document
     let _filter_is_ignored = filter;
@@ -188,18 +184,23 @@ async fn get_pcf(
     config: &State<Config>,
     id: PfId,
     auth: Option<UserToken>,
-) -> Either<Json<ProductFootprintResponse>, error::AccessDenied> {
+) -> ProductFootprintApiResponse {
     let username = match auth {
         Some(auth) => auth.username,
         None => {
-            return Either::Right(Default::default());
+            return ProductFootprintApiResponse::NoAuth(Default::default());
         }
     };
     let data = get_pcf_data(&config.tenants, &username).await;
-    data.iter()
+    let footprint = data
+        .iter()
         .find(|pf| pf.id == id)
-        .map(|pcf| Left(Json(ProductFootprintResponse { data: pcf.clone() })))
-        .unwrap_or_else(|| Either::Right(Default::default()))
+        .map(|pcf| Json(ProductFootprintResponse { data: pcf.clone() }));
+    if let Some(footprint) = footprint {
+        ProductFootprintApiResponse::Ok(footprint)
+    } else {
+        ProductFootprintApiResponse::NoAuth(Default::default())
+    }
 }
 
 #[get("/2/footprints/<_id>", format = "json", rank = 2)]

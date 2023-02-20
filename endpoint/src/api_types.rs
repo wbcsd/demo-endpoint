@@ -7,7 +7,7 @@
 //! Use Case 001 REST API-related type definitions
 use crate::datamodel::{PfId, ProductFootprint};
 use chrono::{DateTime, Utc};
-use okapi::openapi3::Responses;
+use okapi::openapi3::{RefOr, Responses};
 use rocket::serde::json::Json;
 use rocket::{
     http::Header,
@@ -23,12 +23,6 @@ pub(crate) struct FilterString {
     _filter: String,
 }
 
-#[derive(Debug, Responder)]
-pub(crate) enum PfListingResponse {
-    Finished(Json<PfListingResponseInner>),
-    Cont(Json<PfListingResponseInner>, Header<'static>),
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
 #[serde(crate = "rocket::serde", rename_all = "camelCase")]
 /// HTTP Body of Action `GetFootprint`
@@ -41,6 +35,26 @@ pub(crate) struct ProductFootprintResponse {
 /// HTTP Body of Action `ListFootprints`
 pub(crate) struct PfListingResponseInner {
     pub(crate) data: Vec<ProductFootprint>,
+}
+
+#[derive(Responder, Debug)]
+pub(crate) enum ProductFootprintApiResponse {
+    #[response(status = 200, content_type = "application/json")]
+    Ok(Json<ProductFootprintResponse>),
+    #[response(status = 403, content_type = "application/json")]
+    NoAuth(crate::error::AccessDenied),
+}
+
+#[derive(Responder, Debug)]
+pub(crate) enum PfListingApiResponse {
+    #[response(status = 200, content_type = "application/json")]
+    Finished(Json<PfListingResponseInner>),
+    #[response(status = 200, content_type = "application/json")]
+    Cont(Json<PfListingResponseInner>, Header<'static>),
+    #[response(status = 400, content_type = "application/json")]
+    BadReq(crate::error::BadRequest),
+    #[response(status = 403, content_type = "application/json")]
+    NoAuth(crate::error::AccessDenied),
 }
 
 #[derive(Responder, JsonSchema, Debug)]
@@ -162,27 +176,42 @@ impl schemars::JsonSchema for FilterString {
     }
 }
 
-impl OpenApiResponderInner for PfListingResponse {
-    fn responses(
-        gen: &mut rocket_okapi::gen::OpenApiGenerator,
-    ) -> rocket_okapi::Result<okapi::openapi3::Responses> {
-        use okapi::openapi3::RefOr;
+impl OpenApiResponderInner for PfListingApiResponse {
+    fn responses(gen: &mut OpenApiGenerator) -> Result<Responses, OpenApiError> {
+        Ok(Responses {
+            responses: okapi::map! {
+                "200".to_owned() => {
+                    let mut responses = <()>::responses(gen)?.responses["200"].clone();
+                    match &mut responses {
+                        RefOr::Object(response) => {
+                            let header = openapi_link_header();
+                            let header = RefOr::Object(header);
+                            response.headers.insert("link".to_owned(), header);
+                        }
+                        _ => {
+                            panic!("expected object");
+                        }
+                    }
+                    responses
+                },
+                "400".to_owned() => crate::error::BadRequest::responses(gen)?.responses["400"].clone(),
+                "403".to_owned() => crate::error::AccessDenied::responses(gen)?.responses["403"].clone(),
+            },
+            ..Default::default()
+        })
+    }
+}
 
-        let mut responses: okapi::openapi3::Responses =
-            <Json<PfListingResponseInner>>::responses(gen)?;
-
-        match &mut responses.responses["200"] {
-            RefOr::Object(response) => {
-                let header = openapi_link_header();
-                let header = RefOr::Object(header);
-                response.headers.insert("link".to_owned(), header);
-            }
-            _ => {
-                panic!("expected object");
-            }
-        }
-
-        Ok(responses)
+impl OpenApiResponderInner for ProductFootprintApiResponse {
+    fn responses(gen: &mut OpenApiGenerator) -> Result<Responses, OpenApiError> {
+        Ok(Responses {
+            responses: okapi::map! {
+                "200".to_owned() => <()>::responses(gen)?.responses["200"].clone(),
+                "403".to_owned() => crate::error::AccessDenied::responses(gen)?.responses["403"].clone(),
+                "404".to_owned() => crate::error::NoSuchFootprint::responses(gen)?.responses["404"].clone(),
+            },
+            ..Default::default()
+        })
     }
 }
 
