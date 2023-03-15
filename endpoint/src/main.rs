@@ -46,6 +46,8 @@ const ACTION_LIST_FOOTPRINTS_MIN_RESULTS: usize = 10;
 
 const EXAMPLE_HOST: &str = "api.example.com";
 
+const TENANTS_CONFIG_FILE_DEFAULT: &str = "tenants.json";
+
 /// endpoint to create an oauth2 client credentials grant (RFC 6749 4.4)
 #[post("/token", data = "<body>")]
 async fn oauth2_create_token(
@@ -93,11 +95,11 @@ impl<'r> FromRequest<'r> for Host {
 
 async fn read_config(file_path: &Option<String>) -> Result<HashMap<String, Tenant>, String> {
     if file_path.is_none() {
-        if let Ok(false) = tokio::fs::try_exists("Tenants.json").await {
+        if let Ok(false) = tokio::fs::try_exists(TENANTS_CONFIG_FILE_DEFAULT).await {
             return Ok(HashMap::new());
         }
     }
-    let config_path: String = file_path.clone().unwrap_or("Tenants.json".into());
+    let config_path: String = file_path.clone().unwrap_or(TENANTS_CONFIG_FILE_DEFAULT.into());
     match tokio::fs::read(&config_path).await {
         Ok(buf) => match serde_json::from_slice::<TenantConfig>(&buf) {
             Ok(config) => Ok(config.tenants),
