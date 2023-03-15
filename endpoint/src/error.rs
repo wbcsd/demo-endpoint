@@ -17,7 +17,7 @@ use rocket_okapi::{JsonSchema, OpenApiError};
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
 #[serde(crate = "rocket::serde")]
-/// Response with an error code of `NoSuchFootprint`. See Chapter "Error Codes" of the Tech Specs for mor details.
+/// Response with an error code of `NoSuchFootprint`. See Chapter "Error Codes" of the Tech Specs for more details.
 pub(crate) struct NoSuchFootprint {
     pub(crate) message: &'static str,
     pub(crate) code: &'static str,
@@ -25,7 +25,7 @@ pub(crate) struct NoSuchFootprint {
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
 #[serde(crate = "rocket::serde")]
-/// Response with an error code of `AccessDenied`. See Chapter "Error Codes" of the Tech Specs for mor details.
+/// Response with an error code of `AccessDenied`. See Chapter "Error Codes" of the Tech Specs for more details.
 pub(crate) struct AccessDenied {
     pub(crate) message: &'static str,
     pub(crate) code: &'static str,
@@ -33,7 +33,7 @@ pub(crate) struct AccessDenied {
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
 #[serde(crate = "rocket::serde")]
-/// Response with an error code of `BadRequest`. See Chapter "Error Codes" of the Tech Specs for mor details.
+/// Response with an error code of `BadRequest`. See Chapter "Error Codes" of the Tech Specs for more details.
 pub(crate) struct BadRequest {
     pub(crate) message: &'static str,
     pub(crate) code: &'static str,
@@ -41,7 +41,7 @@ pub(crate) struct BadRequest {
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
 #[serde(crate = "rocket::serde")]
-/// Response with an error code of `NotImplemented`. See Chapter "Error Codes" of the Tech Specs for mor details.
+/// Response with an error code of `NotImplemented`. See Chapter "Error Codes" of the Tech Specs for more details.
 pub(crate) struct NotImplemented {
     pub(crate) message: &'static str,
     pub(crate) code: &'static str,
@@ -49,7 +49,7 @@ pub(crate) struct NotImplemented {
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
 #[serde(crate = "rocket::serde")]
-/// Response with an error code of `InternalError`. See Chapter "Error Codes" of the Tech Specs for mor details.
+/// Response with an error code of `InternalError`. See Chapter "Error Codes" of the Tech Specs for more details.
 pub(crate) struct InternalError {
     pub(crate) message: String,
     pub(crate) code: &'static str,
@@ -59,7 +59,7 @@ impl InternalError {
     pub(crate) fn custom(message: String) -> Self {
         Self {
             message,
-            code: "InternalError"
+            code: "InternalError",
         }
     }
 }

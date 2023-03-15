@@ -48,20 +48,20 @@ const EXAMPLE_HOST: &str = "api.example.com";
 
 /// endpoint to create an oauth2 client credentials grant (RFC 6749 4.4)
 #[post("/token", data = "<body>")]
-fn oauth2_create_token(
+async fn oauth2_create_token(
     config: &State<Config>,
     req: auth::OAuth2ClientCredentials,
     body: Form<auth::OAuth2ClientCredentialsBody<'_>>,
 ) -> Either<Json<auth::OAuth2TokenReply>, error::AccessDenied> {
     let mut credentials = HashMap::new();
-    if let Some(tenants) = &config.tenants {
-        for (name, tenant) in tenants {
-            credentials.insert(name.as_str(), tenant.secret.as_str());
+    if let Ok(tenants) = read_config(&config.tenant_config_file).await {
+        for (username, tenant) in tenants {
+            credentials.insert(username, tenant.secret);
         }
     } else {
-        credentials.insert("hello", "pathfinder");
-    }
-    if credentials.get(&req.id.as_str()) == Some(&req.secret.as_str()) {
+        credentials.insert("hello".into(), "pathfinder".into());
+    };
+    if credentials.get(&req.id) == Some(&req.secret) {
         let access_token = auth::encode_token(&auth::UserToken { username: req.id }).unwrap();
 
         let reply = auth::OAuth2TokenReply {
@@ -91,33 +91,28 @@ impl<'r> FromRequest<'r> for Host {
     }
 }
 
-async fn get_pcf_data<'r>(
-    tenants: &Option<HashMap<String, Tenant>>,
-    username: &String,
-) -> Result<Vec<ProductFootprint>, String> {
-    if let Some(tenants) = tenants {
-        if let Some(tenant) = tenants.get(username) {
-            if let Some(data_path) = &tenant.data_path {
-                match tokio::fs::read(data_path).await {
-                    Ok(buf) => match serde_json::from_slice::<Vec<ProductFootprint>>(&buf) {
-                        Ok(data) => return Ok(data),
-                        Err(e) => {
-                            let msg =
-                                format!("{data_path} is not a valid ProductFootprint JSON: {e}");
-                            log::error!("{msg}");
-                            return Err(msg);
-                        }
-                    },
-                    Err(e) => {
-                        let msg = format!("Could not read {data_path}: {e}");
-                        log::error!("{msg}");
-                        return Err(msg);
-                    }
-                }
-            }
+async fn read_config(file_path: &Option<String>) -> Result<HashMap<String, Tenant>, String> {
+    if file_path.is_none() {
+        if let Ok(false) = tokio::fs::try_exists("Tenants.json").await {
+            return Ok(HashMap::new());
         }
     }
-    Ok(PCF_DEMO_DATA.clone())
+    let config_path: String = file_path.clone().unwrap_or("Tenants.json".into());
+    match tokio::fs::read(&config_path).await {
+        Ok(buf) => match serde_json::from_slice::<TenantConfig>(&buf) {
+            Ok(config) => Ok(config.tenants),
+            Err(e) => {
+                let msg = format!("{config_path} is not a valid tenant configuration: {e}");
+                log::error!("{msg}");
+                Err(msg)
+            }
+        },
+        Err(e) => {
+            let msg = format!("Could not read {config_path}: {e}");
+            log::error!("{msg}");
+            Err(msg)
+        }
+    }
 }
 
 #[get("/2/footprints?<limit>&<offset>", format = "json")]
@@ -134,8 +129,11 @@ async fn get_list(
             return PfListingApiResponse::NoAuth(Default::default());
         }
     };
-    let data = match get_pcf_data(&config.tenants, &username).await {
-        Ok(data) => data,
+    let data = match read_config(&config.tenant_config_file).await {
+        Ok(config) => config
+            .get(&username)
+            .map(|tenant| tenant.pcfs.clone())
+            .unwrap_or(PCF_DEMO_DATA.to_vec()),
         Err(e) => {
             return PfListingApiResponse::ServerError(error::InternalError::custom(e));
         }
@@ -203,8 +201,11 @@ async fn get_pcf(
             return ProductFootprintApiResponse::NoAuth(Default::default());
         }
     };
-    let data = match get_pcf_data(&config.tenants, &username).await {
-        Ok(data) => data,
+    let data = match read_config(&config.tenant_config_file).await {
+        Ok(config) => config
+            .get(&username)
+            .map(|tenant| tenant.pcfs.clone())
+            .unwrap_or(PCF_DEMO_DATA.to_vec()),
         Err(e) => {
             return ProductFootprintApiResponse::ServerError(error::InternalError::custom(e));
         }
@@ -271,14 +272,20 @@ const OPENAPI_PATH: &str = "../openapi.json";
 #[derive(Debug, Deserialize, Default)]
 #[serde(crate = "rocket::serde")]
 struct Config {
-    tenants: Option<HashMap<String, Tenant>>,
+    tenant_config_file: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(crate = "rocket::serde")]
+struct TenantConfig {
+    tenants: HashMap<String, Tenant>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(crate = "rocket::serde")]
 struct Tenant {
     secret: String,
-    data_path: Option<String>,
+    pcfs: Vec<ProductFootprint>,
 }
 
 fn create_server() -> rocket::Rocket<rocket::Build> {
@@ -630,7 +637,7 @@ fn multitenant_get_pcf_test() {
             resp.into_json().unwrap()
         );
     }
-    
+
     // test unuath
     {
         let get_pcf_uri = format!("/2/footprints/{}", PCF_DEMO_DATA[2].id.0);
@@ -658,30 +665,5 @@ fn multitenant_get_pcf_test() {
             .header(rocket::http::Header::new("Authorization", bearer_token))
             .dispatch();
         assert_eq!(rocket::http::Status::Forbidden, resp.status());
-    }
-}
-
-#[test]
-fn multitenant_get_list_test_with_missing_json() {
-    let token = UserToken {
-        username: "foobar".to_string(),
-    };
-    let jwt = auth::encode_token(&token).ok().unwrap();
-    let bearer_token = format!("Bearer {jwt}");
-
-    let client = &Client::tracked(create_server()).unwrap();
-
-    let get_list_uri = "/2/footprints";
-
-    // test auth
-    {
-        let resp = client
-            .get(get_list_uri.clone())
-            .header(rocket::http::Header::new("Authorization", bearer_token))
-            .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
-            .dispatch();
-
-        assert_eq!(rocket::http::Status::InternalServerError, resp.status());
-        assert!(resp.into_string().unwrap().contains("Could not read this_does_not_exist.json: No such file or directory"));
     }
 }
