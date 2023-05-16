@@ -42,7 +42,7 @@ use rocket::local::blocking::Client;
 // minimum number of results to return from Action `ListFootprints`
 const ACTION_LIST_FOOTPRINTS_MIN_RESULTS: usize = 10;
 
-const EXAMPLE_HOST: &str = "api.example.com";
+const EXAMPLE_HOST: &str = "api.pathfinder.sine.dev";
 
 /// endpoint to create an oauth2 client credentials grant (RFC 6749 4.4)
 #[post("/token", data = "<body>")]
@@ -317,7 +317,7 @@ fn get_list_with_limit_test() {
         let link_header = resp.headers().get("link").next().unwrap().to_string();
         assert_eq!(
             link_header,
-            format!("<https://api.example.com{expected_next_link1}>; rel=\"next\"")
+            format!("<https://api.pathfinder.sine.dev{expected_next_link1}>; rel=\"next\"")
         );
         let json: PfListingResponseInner = resp.into_json().unwrap();
         assert_eq!(json.data.len(), 3);
@@ -337,7 +337,7 @@ fn get_list_with_limit_test() {
         let link_header = resp.headers().get("link").next().unwrap().to_string();
         assert_eq!(
             link_header,
-            format!("<https://api.example.com{expected_next_link2}>; rel=\"next\"")
+            format!("<https://api.pathfinder.sine.dev{expected_next_link2}>; rel=\"next\"")
         );
         let json: PfListingResponseInner = resp.into_json().unwrap();
         assert_eq!(json.data.len(), 3);
