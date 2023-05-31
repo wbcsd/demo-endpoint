@@ -18,8 +18,10 @@ mod sample_data;
 use std::cmp::min;
 
 use auth::UserToken;
+use chrono::{DateTime, Utc};
 use either::Either;
 use lambda_web::{is_running_on_lambda, launch_rocket_on_lambda, LambdaError};
+use okapi::openapi3::{Object, Parameter, ParameterValue};
 use rocket::catch;
 use rocket::form::Form;
 use rocket::request::FromRequest;
@@ -27,12 +29,13 @@ use rocket::serde::json::Json;
 use rocket_okapi::rapidoc::{
     make_rapidoc, GeneralConfig, HideShowConfig, RapiDocConfig, Theme, UiConfig,
 };
+use rocket_okapi::request::{OpenApiFromRequest, RequestHeaderInput};
 use rocket_okapi::settings::{OpenApiSettings, UrlObject};
 use rocket_okapi::swagger_ui::{make_swagger_ui, SwaggerUIConfig};
 use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};
 
 use api_types::*;
-use datamodel::PfId;
+use datamodel::{PfId, ProductFootprint};
 use sample_data::PCF_DEMO_DATA;
 use Either::Left;
 
@@ -78,22 +81,170 @@ impl<'r> FromRequest<'r> for Host<'r> {
     }
 }
 
+#[derive(Debug)]
+pub struct Filter<'r>(Option<&'r str>);
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for Filter<'r> {
+    type Error = ();
+
+    async fn from_request(
+        request: &'r rocket::Request<'_>,
+    ) -> rocket::request::Outcome<Self, Self::Error> {
+        rocket::request::Outcome::Success(Filter(
+            request
+                .query_value("$filter")
+                .map(|r| r.unwrap_or_default()),
+        ))
+    }
+}
+
+fn filtered_data(filter: Option<&'_ str>) -> Result<Vec<ProductFootprint>, String> {
+    // This implementation of OData v4 $filter syntax only works for the subset supported by the
+    // PACT spec and should be considered merely a demo implemenation. Real implementations should
+    // use a proper parser instead.
+    let Some(filter) = filter else {
+        return Ok(PCF_DEMO_DATA.to_vec());
+    };
+    let filter = filter.replace("(", " ").replace(")", " ");
+    let conjunctions = filter.split(" and ").collect::<Vec<_>>();
+    let mut pfs = PCF_DEMO_DATA.to_vec();
+    for c in conjunctions {
+        let c = c.trim();
+        if c.starts_with("productIds/any productId: productId eq ")
+            || c.starts_with("companyIds/any companyId: companyId eq ")
+        {
+            let value = c.split(" eq ").last().unwrap();
+            let value = value[1..value.len() - 1].to_string();
+            let mut retained = vec![];
+            for pf in pfs.into_iter() {
+                let is_match = if c.starts_with("productIds") {
+                    pf.product_ids.0.iter().any(|id| id.0 == value)
+                } else {
+                    pf.company_ids.0.iter().any(|id| id.0 == value)
+                };
+                if is_match {
+                    retained.push(pf);
+                }
+            }
+            pfs = retained;
+        } else {
+            let parts = c
+                .split(" ")
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>();
+            if parts.len() != 3 {
+                return Err(format!(
+                    "Not a valid condition, expected 3 parts, but found: {parts:?}"
+                ));
+            }
+            let property = parts[0];
+            let operator = parts[1];
+            let value = parts[2];
+            if !value.starts_with("'") && value.ends_with("'") {
+                return Err(format!(
+                    "Value must be a string enclosed in '...', but found: {value}"
+                ));
+            }
+            let value = value[1..value.len() - 1].to_string();
+            let mut retained = vec![];
+            match operator {
+                "eq" => {
+                    for pf in pfs.into_iter() {
+                        let is_eq = match property {
+                            "created" => pf.created.to_string() == value,
+                            "updated" => pf
+                                .updated
+                                .map(|v| v.to_string() == value)
+                                .unwrap_or_default(),
+                            "productCategoryCpc" => pf.product_category_cpc.0 == value,
+                            "pcf/geographyCountry" => pf
+                                .clone()
+                                .pcf
+                                .geographic_scope
+                                .map(|v| {
+                                    v.geography_country()
+                                        .map(|v| v == value)
+                                        .unwrap_or_default()
+                                })
+                                .unwrap_or_default(),
+                            "pcf/reportingPeriodStart" => {
+                                pf.pcf.reporting_period_start.to_string() == value
+                            }
+                            "pcf/reportingPeriodEnd" => {
+                                pf.pcf.reporting_period_end.to_string() == value
+                            }
+                            _ => {
+                                return Err(format!("Unsupported property {property}"));
+                            }
+                        };
+                        if is_eq {
+                            retained.push(pf);
+                        }
+                    }
+                }
+                operator => {
+                    let Ok(value) = value.parse::<DateTime<Utc>>() else {
+                        return Err(format!("Not a valid datetime: {value}"));
+                    };
+                    for pf in pfs.into_iter() {
+                        let v = match property {
+                            "created" => Some(pf.created),
+                            "updated" => pf.updated,
+                            "pcf/reportingPeriodStart" => Some(pf.pcf.reporting_period_start),
+                            "pcf/reportingPeriodEnd" => Some(pf.pcf.reporting_period_end),
+                            _ => {
+                                return Err(format!("Unsupported property {property}"));
+                            }
+                        };
+                        if let Some(v) = v {
+                            let is_match = match operator {
+                                "lt" => v < value,
+                                "le" => v <= value,
+                                "gt" => v > value,
+                                "ge" => v >= value,
+                                _ => {
+                                    return Err(format!("Unsupported operator {operator}"));
+                                }
+                            };
+                            if is_match {
+                                retained.push(pf);
+                            }
+                        }
+                    }
+                }
+            }
+            pfs = retained;
+        }
+    }
+    Ok(pfs)
+}
+
 #[get("/2/footprints?<limit>&<offset>", format = "json")]
 fn get_list(
     auth: Option<UserToken>,
     limit: usize,
     offset: usize,
+    filter: Filter,
     host: Host,
 ) -> Either<PfListingResponse, error::AccessDenied> {
     if auth.is_none() {
         return Either::Right(Default::default());
     }
 
-    if offset >= PCF_DEMO_DATA.len() {
+    let data = match filtered_data(filter.0) {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!("{e}");
+            return Either::Right(Default::default());
+        }
+    };
+
+    if offset > data.len() {
         return Either::Right(Default::default());
     }
 
-    let data = &PCF_DEMO_DATA;
     let max_limit = data.len() - offset;
     let limit = min(limit, max_limit);
 
@@ -118,20 +269,43 @@ fn get_list(
     }
 }
 
+impl<'r> OpenApiFromRequest<'r> for Filter<'r> {
+    fn from_request_input(
+        gen: &mut rocket_okapi::gen::OpenApiGenerator,
+        _name: String,
+        _required: bool,
+    ) -> rocket_okapi::Result<RequestHeaderInput> {
+        let schema = gen.json_schema::<String>();
+        Ok(RequestHeaderInput::Parameter(Parameter {
+            name: "$filter".to_owned(),
+            location: "query".to_owned(),
+            description: Some("Syntax as defined by the ODatav4 specification".to_owned()),
+            required: false,
+            deprecated: false,
+            allow_empty_value: true,
+            value: ParameterValue::Schema {
+                style: None,
+                explode: None,
+                allow_reserved: false,
+                schema,
+                example: None,
+                examples: None,
+            },
+            extensions: Object::default(),
+        }))
+    }
+}
+
 #[openapi]
-#[get("/2/footprints?<limit>&<filter>", format = "json", rank = 2)]
+#[get("/2/footprints?<limit>", format = "json", rank = 2)]
 fn get_footprints(
     auth: Option<UserToken>,
     limit: Option<usize>,
-    filter: Option<FilterString>,
+    filter: Filter,
 ) -> Either<PfListingResponse, error::AccessDenied> {
-    // ignore that filter is not implemented as we cannot rename the function parameter
-    // as this would propagate through to the OpenAPI document
-    let _filter_is_ignored = filter;
     let limit = limit.unwrap_or(ACTION_LIST_FOOTPRINTS_MIN_RESULTS);
     let offset = 0;
-
-    get_list(auth, limit, offset, Host(Some(EXAMPLE_HOST)))
+    get_list(auth, limit, offset, filter, Host(Some(EXAMPLE_HOST)))
 }
 
 #[openapi]
@@ -288,6 +462,123 @@ fn get_list_test() {
             .dispatch();
         assert_eq!(rocket::http::Status::Forbidden, resp.status());
     }
+}
+
+#[test]
+fn get_list_with_filter_eq_test() {
+    let token = UserToken {
+        username: "hello".to_string(),
+    };
+    let jwt = auth::encode_token(&token).ok().unwrap();
+    let bearer_token = format!("Bearer {jwt}");
+    let client = &Client::tracked(create_server()).unwrap();
+
+    let get_list_with_limit_uri = "/2/footprints?$filter=pcf/geographyCountry+eq+'FR'";
+
+    let resp = client
+        .get(get_list_with_limit_uri.clone())
+        .header(rocket::http::Header::new(
+            "Authorization",
+            bearer_token.clone(),
+        ))
+        .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
+        .dispatch();
+
+    assert_eq!(rocket::http::Status::Ok, resp.status());
+    let json: PfListingResponseInner = resp.into_json().unwrap();
+    assert_eq!(json.data.len(), 5);
+}
+
+#[test]
+fn get_list_with_filter_lt_test() {
+    let token = UserToken {
+        username: "hello".to_string(),
+    };
+    let jwt = auth::encode_token(&token).ok().unwrap();
+    let bearer_token = format!("Bearer {jwt}");
+    let client = &Client::tracked(create_server()).unwrap();
+
+    let get_list_with_limit_uri = "/2/footprints?$filter=updated+lt+'2023-01-01T00:00:00.000Z'";
+
+    let resp = client
+        .get(get_list_with_limit_uri.clone())
+        .header(rocket::http::Header::new(
+            "Authorization",
+            bearer_token.clone(),
+        ))
+        .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
+        .dispatch();
+
+    assert_eq!(rocket::http::Status::Ok, resp.status());
+    let json: PfListingResponseInner = resp.into_json().unwrap();
+    assert_eq!(json.data.len(), 3);
+}
+
+#[test]
+fn get_list_with_filter_eq_and_lt_test() {
+    let token = UserToken {
+        username: "hello".to_string(),
+    };
+    let jwt = auth::encode_token(&token).ok().unwrap();
+    let bearer_token = format!("Bearer {jwt}");
+    let client = &Client::tracked(create_server()).unwrap();
+
+    let get_list_with_limit_uri = "/2/footprints?$filter=(pcf/geographyCountry+eq+'FR')+and+(updated+lt+'2023-01-01T00:00:00.000Z')";
+
+    let resp = client
+        .get(get_list_with_limit_uri.clone())
+        .header(rocket::http::Header::new(
+            "Authorization",
+            bearer_token.clone(),
+        ))
+        .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
+        .dispatch();
+
+    assert_eq!(rocket::http::Status::Ok, resp.status());
+    let json: PfListingResponseInner = resp.into_json().unwrap();
+    assert_eq!(json.data.len(), 1);
+}
+
+#[test]
+fn get_list_with_filter_any_test() {
+    let token = UserToken {
+        username: "hello".to_string(),
+    };
+    let jwt = auth::encode_token(&token).ok().unwrap();
+    let bearer_token = format!("Bearer {jwt}");
+    let client = &Client::tracked(create_server()).unwrap();
+
+    let get_list_with_limit_uri =
+        "/2/footprints?$filter=productIds/any(productId:(productId+eq+'urn:gtin:4712345060507'))";
+
+    let resp = client
+        .get(get_list_with_limit_uri.clone())
+        .header(rocket::http::Header::new(
+            "Authorization",
+            bearer_token.clone(),
+        ))
+        .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
+        .dispatch();
+
+    assert_eq!(rocket::http::Status::Ok, resp.status());
+    let json: PfListingResponseInner = resp.into_json().unwrap();
+    assert_eq!(json.data.len(), 8);
+
+    let get_list_with_limit_uri =
+        "/2/footprints?$filter=productIds/any(productId:(productId+eq+'urn:gtin:12345'))";
+
+    let resp = client
+        .get(get_list_with_limit_uri.clone())
+        .header(rocket::http::Header::new(
+            "Authorization",
+            bearer_token.clone(),
+        ))
+        .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
+        .dispatch();
+
+    assert_eq!(rocket::http::Status::Ok, resp.status());
+    let json: PfListingResponseInner = resp.into_json().unwrap();
+    assert_eq!(json.data.len(), 0);
 }
 
 #[test]
