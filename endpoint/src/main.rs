@@ -106,7 +106,7 @@ fn filtered_data(filter: Option<&'_ str>) -> Result<Vec<ProductFootprint>, Strin
     let Some(filter) = filter else {
         return Ok(PCF_DEMO_DATA.to_vec());
     };
-    let filter = filter.replace("(", " ").replace(")", " ");
+    let filter = filter.replace(['(', ')'], " ");
     let conjunctions = filter.split(" and ").collect::<Vec<_>>();
     let mut pfs = PCF_DEMO_DATA.to_vec();
     for c in conjunctions {
@@ -130,7 +130,7 @@ fn filtered_data(filter: Option<&'_ str>) -> Result<Vec<ProductFootprint>, Strin
             pfs = retained;
         } else {
             let parts = c
-                .split(" ")
+                .split(' ')
                 .map(|s| s.trim())
                 .filter(|s| !s.is_empty())
                 .collect::<Vec<_>>();
@@ -142,7 +142,7 @@ fn filtered_data(filter: Option<&'_ str>) -> Result<Vec<ProductFootprint>, Strin
             let property = parts[0];
             let operator = parts[1];
             let value = parts[2];
-            if !value.starts_with("'") && value.ends_with("'") {
+            if !value.starts_with('\'') && value.ends_with('\'') {
                 return Err(format!(
                     "Value must be a string enclosed in '...', but found: {value}"
                 ));
@@ -479,7 +479,7 @@ fn get_list_with_filter_eq_test() {
         .get(get_list_with_limit_uri.clone())
         .header(rocket::http::Header::new(
             "Authorization",
-            bearer_token.clone(),
+            bearer_token,
         ))
         .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
         .dispatch();
@@ -504,7 +504,7 @@ fn get_list_with_filter_lt_test() {
         .get(get_list_with_limit_uri.clone())
         .header(rocket::http::Header::new(
             "Authorization",
-            bearer_token.clone(),
+            bearer_token,
         ))
         .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
         .dispatch();
@@ -529,7 +529,7 @@ fn get_list_with_filter_eq_and_lt_test() {
         .get(get_list_with_limit_uri.clone())
         .header(rocket::http::Header::new(
             "Authorization",
-            bearer_token.clone(),
+            bearer_token,
         ))
         .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
         .dispatch();
@@ -571,7 +571,7 @@ fn get_list_with_filter_any_test() {
         .get(get_list_with_limit_uri.clone())
         .header(rocket::http::Header::new(
             "Authorization",
-            bearer_token.clone(),
+            bearer_token,
         ))
         .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
         .dispatch();
