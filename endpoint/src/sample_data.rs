@@ -119,12 +119,12 @@ lazy_static! {
             product_name_company: String::from("Green Ethanol Chassagne-Montrachet").into(),
             version: VersionInteger(1),
             updated: Some(*UPDATED_AT),
-                pcf: CarbonFootprint {
-                    geographic_scope: Some(GeographicScope::Regional {
-                        geography_region_or_subregion: UNRegionOrSubregion::WesternEurope
-                    }),
-                    ..PCF.clone()
-                },
+            pcf: CarbonFootprint {
+                geographic_scope: Some(GeographicScope::Regional {
+                    geography_region_or_subregion: UNRegionOrSubregion::WesternEurope
+                }),
+                ..PCF.clone()
+            },
             ..base()
         },
         ProductFootprint {
@@ -132,21 +132,21 @@ lazy_static! {
             product_name_company: String::from("Green Ethanol Volnay").into(),
             version: VersionInteger(42),
             updated: Some(*UPDATED_AT),
-                pcf: CarbonFootprint {
-                    geographic_scope: None, // i.e. global
-                    ..PCF.clone()
-                },
+            pcf: CarbonFootprint {
+                geographic_scope: None, // i.e. global
+                ..PCF.clone()
+            },
             ..base()
         },
         ProductFootprint {
             id: PfId(uuid!("3392ff32-421e-44b5-966f-d02df90d91b2")),
             product_name_company: String::from("Green Ethanol Mont-Saint-Sulpice").into(),
-                pcf: CarbonFootprint {
-                    geographic_scope: Some(GeographicScope::Subdivision {
-                        geography_country_subdivision: String::from("FR-89").into(),
-                    }),
-                    ..PCF.clone()
-                },
+            pcf: CarbonFootprint {
+                geographic_scope: Some(GeographicScope::Subdivision {
+                    geography_country_subdivision: String::from("FR-89").into(),
+                }),
+                ..PCF.clone()
+            },
             ..base()
         },
     ];

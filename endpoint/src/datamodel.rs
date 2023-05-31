@@ -190,7 +190,7 @@ pub(crate) struct StrictlyPositiveDecimal(Decimal);
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "rocket::serde")]
-pub(crate) struct NonEmptyString(String);
+pub(crate) struct NonEmptyString(pub(crate) String);
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "rocket::serde")]
@@ -246,6 +246,15 @@ pub(crate) enum GeographicScope {
     Subdivision {
         geography_country_subdivision: NonEmptyString,
     },
+}
+
+impl GeographicScope {
+    pub fn geography_country(&self) -> Option<&str> {
+        match self {
+            GeographicScope::Country { geography_country } => Some(&geography_country.0),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
