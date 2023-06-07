@@ -45,8 +45,6 @@ use rocket::local::blocking::Client;
 // minimum number of results to return from Action `ListFootprints`
 const ACTION_LIST_FOOTPRINTS_MIN_RESULTS: usize = 10;
 
-const EXAMPLE_HOST: &str = "api.pathfinder.sine.dev";
-
 /// endpoint to create an oauth2 client credentials grant (RFC 6749 4.4)
 #[post("/token", data = "<body>")]
 fn oauth2_create_token(
@@ -81,6 +79,16 @@ impl<'r> FromRequest<'r> for Host<'r> {
     }
 }
 
+impl<'r> OpenApiFromRequest<'r> for Host<'r> {
+    fn from_request_input(
+        _gen: &mut rocket_okapi::gen::OpenApiGenerator,
+        _name: String,
+        _required: bool,
+    ) -> rocket_okapi::Result<RequestHeaderInput> {
+        Ok(RequestHeaderInput::None)
+    }
+}
+
 #[derive(Debug)]
 pub struct Filter<'r>(Option<&'r str>);
 
@@ -96,6 +104,33 @@ impl<'r> FromRequest<'r> for Filter<'r> {
                 .query_value("$filter")
                 .map(|r| r.unwrap_or_default()),
         ))
+    }
+}
+
+impl<'r> OpenApiFromRequest<'r> for Filter<'r> {
+    fn from_request_input(
+        gen: &mut rocket_okapi::gen::OpenApiGenerator,
+        _name: String,
+        _required: bool,
+    ) -> rocket_okapi::Result<RequestHeaderInput> {
+        let schema = gen.json_schema::<String>();
+        Ok(RequestHeaderInput::Parameter(Parameter {
+            name: "$filter".to_owned(),
+            location: "query".to_owned(),
+            description: Some("Syntax as defined by the ODatav4 specification".to_owned()),
+            required: false,
+            deprecated: false,
+            allow_empty_value: true,
+            value: ParameterValue::Schema {
+                style: None,
+                explode: None,
+                allow_reserved: false,
+                schema,
+                example: None,
+                examples: None,
+            },
+            extensions: Object::default(),
+        }))
     }
 }
 
@@ -256,7 +291,13 @@ fn get_list(
     if next_offset < data.len() {
         let host = host
             .0
-            .map(|host| format!("https://{host}"))
+            .map(|host| {
+                if host.starts_with("127.0.0.1:") || host.starts_with("localhost:") {
+                    format!("http://{host}")
+                } else {
+                    format!("https://{host}")
+                }
+            })
             .unwrap_or_default();
         let link =
             format!("<{host}/2/footprints?offset={next_offset}&limit={limit}>; rel=\"next\"");
@@ -269,43 +310,17 @@ fn get_list(
     }
 }
 
-impl<'r> OpenApiFromRequest<'r> for Filter<'r> {
-    fn from_request_input(
-        gen: &mut rocket_okapi::gen::OpenApiGenerator,
-        _name: String,
-        _required: bool,
-    ) -> rocket_okapi::Result<RequestHeaderInput> {
-        let schema = gen.json_schema::<String>();
-        Ok(RequestHeaderInput::Parameter(Parameter {
-            name: "$filter".to_owned(),
-            location: "query".to_owned(),
-            description: Some("Syntax as defined by the ODatav4 specification".to_owned()),
-            required: false,
-            deprecated: false,
-            allow_empty_value: true,
-            value: ParameterValue::Schema {
-                style: None,
-                explode: None,
-                allow_reserved: false,
-                schema,
-                example: None,
-                examples: None,
-            },
-            extensions: Object::default(),
-        }))
-    }
-}
-
 #[openapi]
 #[get("/2/footprints?<limit>", format = "json", rank = 2)]
 fn get_footprints(
     auth: Option<UserToken>,
     limit: Option<usize>,
     filter: Filter,
+    host: Host,
 ) -> Either<PfListingResponse, error::AccessDenied> {
     let limit = limit.unwrap_or(ACTION_LIST_FOOTPRINTS_MIN_RESULTS);
     let offset = 0;
-    get_list(auth, limit, offset, filter, Host(Some(EXAMPLE_HOST)))
+    get_list(auth, limit, offset, filter, host)
 }
 
 #[openapi]
@@ -426,6 +441,9 @@ async fn main() -> Result<(), LambdaError> {
     Ok(())
 }
 
+#[cfg(test)]
+const EXAMPLE_HOST: &str = "api.pathfinder.sine.dev";
+
 #[test]
 fn get_list_test() {
     let token = UserToken {
@@ -477,10 +495,7 @@ fn get_list_with_filter_eq_test() {
 
     let resp = client
         .get(get_list_with_limit_uri.clone())
-        .header(rocket::http::Header::new(
-            "Authorization",
-            bearer_token,
-        ))
+        .header(rocket::http::Header::new("Authorization", bearer_token))
         .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
         .dispatch();
 
@@ -502,10 +517,7 @@ fn get_list_with_filter_lt_test() {
 
     let resp = client
         .get(get_list_with_limit_uri.clone())
-        .header(rocket::http::Header::new(
-            "Authorization",
-            bearer_token,
-        ))
+        .header(rocket::http::Header::new("Authorization", bearer_token))
         .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
         .dispatch();
 
@@ -527,10 +539,7 @@ fn get_list_with_filter_eq_and_lt_test() {
 
     let resp = client
         .get(get_list_with_limit_uri.clone())
-        .header(rocket::http::Header::new(
-            "Authorization",
-            bearer_token,
-        ))
+        .header(rocket::http::Header::new("Authorization", bearer_token))
         .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
         .dispatch();
 
@@ -569,10 +578,7 @@ fn get_list_with_filter_any_test() {
 
     let resp = client
         .get(get_list_with_limit_uri.clone())
-        .header(rocket::http::Header::new(
-            "Authorization",
-            bearer_token,
-        ))
+        .header(rocket::http::Header::new("Authorization", bearer_token))
         .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
         .dispatch();
 
