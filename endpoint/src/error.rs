@@ -27,8 +27,8 @@ pub(crate) struct NoSuchFootprint {
 #[serde(crate = "rocket::serde")]
 /// Response with an error code of `AccessDenied`. See Chapter "Error Codes" of the Tech Specs for mor details.
 pub(crate) struct AccessDenied {
-    pub(crate) message: &'static str,
-    pub(crate) code: &'static str,
+    pub(crate) error: &'static str,
+    pub(crate) error_description: &'static str,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
@@ -50,8 +50,8 @@ pub(crate) struct NotImplemented {
 impl Default for AccessDenied {
     fn default() -> Self {
         Self {
-            message: "Access Denied",
-            code: "AccessDenied",
+            error: "unauthorized_client",
+            error_description: "Authentication failed",
         }
     }
 }
