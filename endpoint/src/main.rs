@@ -50,7 +50,7 @@ const ACTION_LIST_FOOTPRINTS_MIN_RESULTS: usize = 10;
 fn oauth2_create_token(
     req: auth::OAuth2ClientCredentials,
     body: Form<auth::OAuth2ClientCredentialsBody<'_>>,
-) -> Either<Json<auth::OAuth2TokenReply>, error::AccessDenied> {
+) -> Either<Json<auth::OAuth2TokenReply>, error::OAuth2ErrorMessage> {
     if req.id == "hello" && req.secret == "pathfinder" {
         let access_token = auth::encode_token(&auth::UserToken { username: req.id }).unwrap();
 
@@ -61,7 +61,10 @@ fn oauth2_create_token(
         };
         Either::Left(Json(reply))
     } else {
-        Either::Right(Default::default())
+        Either::Right(error::OAuth2ErrorMessage {
+            error_description: "Invalid client credentials",
+            error: "unauthorized_client",
+        })
     }
 }
 
