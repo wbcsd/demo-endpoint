@@ -451,6 +451,8 @@ const EXAMPLE_HOST: &str = "api.pathfinder.sine.dev";
 
 #[test]
 fn invalid_credentials_test() {
+    use std::collections::HashMap;
+
     let auth_uri = "/2/auth/token";
 
     let credentials = base64::encode("hello:wrong_password");
@@ -468,16 +470,22 @@ fn invalid_credentials_test() {
         .body("grant_type=client_credentials")
         .dispatch();
 
-    let error_response: std::collections::HashMap<String, String> = resp.into_json().unwrap();
-
-    println!("error_response = {error_response:#?}");
     assert_eq!(
-        error_response.get("error"),
-        Some(&"unauthorized_client".to_string())
+        rocket::http::ContentType::JSON,
+        resp.content_type().unwrap()
     );
+    assert_eq!(rocket::http::Status::Unauthorized, resp.status());
+
+    let error_response: HashMap<String, String> = resp.into_json().unwrap();
     assert_eq!(
-        error_response.get("error_description"),
-        Some(&"Invalid client credentials".to_string())
+        HashMap::from([
+            ("error".to_string(), "unauthorized_client".to_string()),
+            (
+                "error_description".to_string(),
+                "Invalid client credentials".to_string()
+            )
+        ]),
+        error_response
     );
 }
 
