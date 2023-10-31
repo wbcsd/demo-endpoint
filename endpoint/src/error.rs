@@ -31,6 +31,14 @@ pub(crate) struct AccessDenied {
     pub(crate) code: &'static str,
 }
 
+/// RFC 6749 OAuth 2.0 Error Response
+#[serde(crate = "rocket::serde")]
+#[derive(Serialize, JsonSchema, PartialEq, Debug)]
+pub(crate) struct OAuth2ErrorMessage {
+    pub(crate) error: &'static str,
+    pub(crate) error_description: &'static str,
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
 #[serde(crate = "rocket::serde")]
 /// Response with an error code of `BadRequest`. See Chapter "Error Codes" of the Tech Specs for mor details.
@@ -115,6 +123,15 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for NotImplemented {
         Response::build()
             .merge(Json(self).respond_to(request)?)
             .status(Status::BadRequest)
+            .ok()
+    }
+}
+
+impl<'r, 'o: 'r> Responder<'r, 'o> for OAuth2ErrorMessage {
+    fn respond_to(self, request: &'r Request<'_>) -> response::Result<'o> {
+        Response::build()
+            .merge(Json(self).respond_to(request)?)
+            .status(Status::Unauthorized)
             .ok()
     }
 }
