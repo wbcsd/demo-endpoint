@@ -20,11 +20,13 @@ use std::cmp::min;
 use auth::UserToken;
 use chrono::{DateTime, Utc};
 use either::Either;
+
 use lambda_web::{is_running_on_lambda, launch_rocket_on_lambda, LambdaError};
 use okapi::openapi3::{Object, Parameter, ParameterValue};
 use rocket::catch;
 use rocket::form::Form;
 use rocket::request::FromRequest;
+
 use rocket::serde::json::Json;
 use rocket_okapi::rapidoc::{
     make_rapidoc, GeneralConfig, HideShowConfig, RapiDocConfig, Theme, UiConfig,
@@ -446,6 +448,38 @@ async fn main() -> Result<(), LambdaError> {
 
 #[cfg(test)]
 const EXAMPLE_HOST: &str = "api.pathfinder.sine.dev";
+
+#[test]
+fn invalid_credentials_test() {
+    let auth_uri = "/2/auth/token";
+
+    let credentials = base64::encode("hello:wrong_password");
+    let basic_auth = format!("Basic {credentials}");
+    let client = &Client::tracked(create_server()).unwrap();
+
+    let resp = client
+        .post(auth_uri)
+        .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
+        .header(rocket::http::Header::new("Authorization", basic_auth))
+        .header(rocket::http::Header::new(
+            "Content-Type",
+            "application/x-www-form-urlencoded",
+        ))
+        .body("grant_type=client_credentials")
+        .dispatch();
+
+    let error_response: std::collections::HashMap<String, String> = resp.into_json().unwrap();
+
+    println!("error_response = {error_response:#?}");
+    assert_eq!(
+        error_response.get("error"),
+        Some(&"unauthorized_client".to_string())
+    );
+    assert_eq!(
+        error_response.get("error_description"),
+        Some(&"Invalid client credentials".to_string())
+    );
+}
 
 #[test]
 fn get_list_test() {

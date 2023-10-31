@@ -32,12 +32,13 @@ pub(crate) struct AccessDenied {
 }
 
 /// RFC 6749 OAuth 2.0 Error Response
-#[serde(crate = "rocket::serde")]
 #[derive(Serialize, JsonSchema, PartialEq, Debug)]
+#[serde(crate = "rocket::serde")]
 pub(crate) struct OAuth2ErrorMessage {
     pub(crate) error: &'static str,
     pub(crate) error_description: &'static str,
 }
+
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug)]
 #[serde(crate = "rocket::serde")]
