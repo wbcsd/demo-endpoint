@@ -47,13 +47,16 @@ use rocket::local::blocking::Client;
 // minimum number of results to return from Action `ListFootprints`
 const ACTION_LIST_FOOTPRINTS_MIN_RESULTS: usize = 10;
 
+const AUTH_USERNAME: &str = "hello";
+const AUTH_PASSWORD: &str = "pathfinder";
+
 /// endpoint to create an oauth2 client credentials grant (RFC 6749 4.4)
 #[post("/token", data = "<body>")]
 fn oauth2_create_token(
     req: auth::OAuth2ClientCredentials,
     body: Form<auth::OAuth2ClientCredentialsBody<'_>>,
 ) -> Either<Json<auth::OAuth2TokenReply>, error::OAuth2ErrorMessage> {
-    if req.id == "hello" && req.secret == "pathfinder" {
+    if req.id == AUTH_USERNAME && req.secret == AUTH_PASSWORD {
         let access_token = auth::encode_token(&auth::UserToken { username: req.id }).unwrap();
 
         let reply = auth::OAuth2TokenReply {
@@ -449,44 +452,71 @@ async fn main() -> Result<(), LambdaError> {
 #[cfg(test)]
 const EXAMPLE_HOST: &str = "api.pathfinder.sine.dev";
 
+// tests the /v2/auth/token endpoint
 #[test]
-fn invalid_credentials_test() {
+fn post_auth_action_test() {
     use std::collections::HashMap;
 
     let auth_uri = "/2/auth/token";
 
-    let credentials = base64::encode("hello:wrong_password");
-    let basic_auth = format!("Basic {credentials}");
     let client = &Client::tracked(create_server()).unwrap();
 
-    let resp = client
-        .post(auth_uri)
-        .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
-        .header(rocket::http::Header::new("Authorization", basic_auth))
-        .header(rocket::http::Header::new(
-            "Content-Type",
-            "application/x-www-form-urlencoded",
-        ))
-        .body("grant_type=client_credentials")
-        .dispatch();
+    // invalid credentials
+    {
+        let credentials = base64::encode("hello:wrong_password");
+        let basic_auth = format!("Basic {credentials}");
+        let resp = client
+            .post(auth_uri)
+            .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
+            .header(rocket::http::Header::new("Authorization", basic_auth))
+            .header(rocket::http::Header::new(
+                "Content-Type",
+                "application/x-www-form-urlencoded",
+            ))
+            .body("grant_type=client_credentials")
+            .dispatch();
 
-    assert_eq!(
-        rocket::http::ContentType::JSON,
-        resp.content_type().unwrap()
-    );
-    assert_eq!(rocket::http::Status::Unauthorized, resp.status());
+        assert_eq!(
+            rocket::http::ContentType::JSON,
+            resp.content_type().unwrap()
+        );
+        assert_eq!(rocket::http::Status::Unauthorized, resp.status());
 
-    let error_response: HashMap<String, String> = resp.into_json().unwrap();
-    assert_eq!(
-        HashMap::from([
-            ("error".to_string(), "unauthorized_client".to_string()),
-            (
-                "error_description".to_string(),
-                "Invalid client credentials".to_string()
-            )
-        ]),
-        error_response
-    );
+        let error_response: HashMap<String, String> = resp.into_json().unwrap();
+        assert_eq!(
+            HashMap::from([
+                ("error".to_string(), "unauthorized_client".to_string()),
+                (
+                    "error_description".to_string(),
+                    "Invalid client credentials".to_string()
+                )
+            ]),
+            error_response
+        );
+    }
+
+    // valid credentials
+    {
+        let credentials = base64::encode(format!("{}:{}", AUTH_USERNAME, AUTH_PASSWORD));
+        let basic_auth = format!("Basic {credentials}");
+
+        let resp = client
+            .post(auth_uri)
+            .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
+            .header(rocket::http::Header::new("Authorization", basic_auth))
+            .header(rocket::http::Header::new(
+                "Content-Type",
+                "application/x-www-form-urlencoded",
+            ))
+            .body("grant_type=client_credentials")
+            .dispatch();
+
+        assert_eq!(
+            rocket::http::ContentType::JSON,
+            resp.content_type().unwrap()
+        );
+        assert_eq!(rocket::http::Status::Ok, resp.status());
+    }
 }
 
 #[test]
