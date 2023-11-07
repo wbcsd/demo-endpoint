@@ -1,10 +1,10 @@
-FROM rust:1 as builder
+FROM rust:1.73 as builder
 WORKDIR /app
 COPY . .
 RUN cargo build --release
 
 
-FROM debian:buster-slim as runner
+FROM debian:bookworm-slim as runner
 
 RUN useradd -ms /bin/bash app
 
