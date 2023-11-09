@@ -50,6 +50,21 @@ const ACTION_LIST_FOOTPRINTS_MIN_RESULTS: usize = 10;
 const AUTH_USERNAME: &str = "hello";
 const AUTH_PASSWORD: &str = "pathfinder";
 
+#[derive(Debug, rocket::serde::Serialize, rocket::serde::Deserialize)]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
+struct OpenIdConfiguration {
+    token_endpoint: String,
+}
+
+/// endpoint to retrieve the OpenId configuration document with the token_endpoint
+#[get("/2/.well-known/openid-configuration")]
+fn openid_configuration() -> Json<OpenIdConfiguration> {
+    let openid_conf = OpenIdConfiguration {
+        token_endpoint: format!("/2/auth/token"),
+    };
+    Json(openid_conf)
+}
+
 /// endpoint to create an oauth2 client credentials grant (RFC 6749 4.4)
 #[post("/token", data = "<body>")]
 fn oauth2_create_token(
@@ -406,6 +421,7 @@ fn create_server() -> rocket::Rocket<rocket::Build> {
     rocket::build()
         .mount("/", openapi_routes)
         .mount("/", routes![get_list, get_pcf_unauth, post_event_fallback])
+        .mount("/", routes![openid_configuration])
         .mount("/2/auth", routes![oauth2_create_token])
         .mount(
             "/swagger-ui/",
