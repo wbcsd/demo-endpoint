@@ -131,6 +131,10 @@ impl<'r> FromRequest<'r> for UserToken {
         req: &'r Request<'_>,
     ) -> request::Outcome<Self, status::Custom<UserTokenError>> {
         if let Some(authen_header) = req.headers().get_one("Authorization") {
+            println!(
+                "request state: {:?}",
+                req.rocket().state::<KeyPair>().unwrap()
+            );
             let authen_str = authen_header.to_string();
             if authen_str.starts_with("Bearer") {
                 let token = authen_str[6..authen_str.len()].trim();
@@ -174,10 +178,13 @@ pub fn generate_keys() -> KeyPair {
 }
 
 fn decode_token(token: String, pub_key: String) -> Result<TokenData<UserToken>> {
+    let mut v = Validation::new(Algorithm::RS256);
+    v.validate_exp = false;
+
     jsonwebtoken::decode::<UserToken>(
         &token,
         &DecodingKey::from_rsa_pem(pub_key.as_bytes()).unwrap(),
-        &Validation::new(Algorithm::RS256),
+        &v,
     )
 }
 

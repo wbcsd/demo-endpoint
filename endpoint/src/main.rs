@@ -22,6 +22,10 @@ use auth::{generate_keys, UserToken};
 use chrono::{DateTime, Utc};
 use either::Either;
 
+use jsonwebtoken::jwk::{
+    AlgorithmParameters, CommonParameters, Jwk, JwkSet, KeyAlgorithm, PublicKeyUse,
+    RSAKeyParameters,
+};
 use lambda_web::{is_running_on_lambda, launch_rocket_on_lambda, LambdaError};
 use okapi::openapi3::{Object, Parameter, ParameterValue};
 use rocket::catch;
@@ -41,7 +45,9 @@ use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};
 use api_types::*;
 use datamodel::{PfId, ProductFootprint};
 use openid_conf::OpenIdConfiguration;
-use rsa::{RsaPrivateKey, RsaPublicKey};
+use rsa::pkcs8::{self, DecodePublicKey};
+use rsa::traits::PublicKeyParts;
+use rsa::RsaPublicKey;
 use sample_data::PCF_DEMO_DATA;
 use Either::Left;
 
@@ -71,6 +77,34 @@ fn openid_configuration() -> Json<OpenIdConfiguration> {
     Json(openid_conf)
 }
 
+#[get("/2/jwks")]
+fn jwks(state: &State<KeyPair>) -> Json<JwkSet> {
+    println!("{:?}", state.pub_key);
+    let pub_key: RsaPublicKey =
+        pkcs8::DecodePublicKey::from_public_key_pem(&state.pub_key).unwrap();
+    let jwks = JwkSet {
+        keys: vec![Jwk {
+            common: CommonParameters {
+                public_key_use: Some(PublicKeyUse::Signature),
+                key_operations: None,
+                key_algorithm: Some(KeyAlgorithm::RS256),
+                key_id: Some("Public key".to_string()),
+                x509_url: None,
+                x509_chain: None,
+                x509_sha1_fingerprint: None,
+                x509_sha256_fingerprint: None,
+            },
+            algorithm: AlgorithmParameters::RSA(RSAKeyParameters {
+                key_type: jsonwebtoken::jwk::RSAKeyType::RSA,
+                n: pub_key.n().to_string(),
+                e: pub_key.e().to_string(),
+            }),
+        }],
+    };
+
+    Json(jwks)
+}
+
 /// endpoint to create an oauth2 client credentials grant (RFC 6749 4.4)
 #[post("/token", data = "<body>")]
 fn oauth2_create_token(
@@ -78,6 +112,8 @@ fn oauth2_create_token(
     body: Form<auth::OAuth2ClientCredentialsBody<'_>>,
     state: &State<KeyPair>,
 ) -> Either<Json<auth::OAuth2TokenReply>, error::OAuth2ErrorMessage> {
+    println!("{state:?}");
+
     if req.id == AUTH_USERNAME && req.secret == AUTH_PASSWORD {
         let access_token = auth::encode_token(
             &auth::UserToken { username: req.id },
@@ -432,7 +468,7 @@ fn create_server() -> rocket::Rocket<rocket::Build> {
     rocket::build()
         .mount("/", openapi_routes)
         .mount("/", routes![get_list, get_pcf_unauth, post_event_fallback])
-        .mount("/", routes![openid_configuration])
+        .mount("/", routes![openid_configuration, jwks])
         .mount("/2/auth", routes![oauth2_create_token])
         .mount(
             "/swagger-ui/",
