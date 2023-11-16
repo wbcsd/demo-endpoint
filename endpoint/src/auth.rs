@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 /*
  * Copyright (c) Martin Pompéry
  *
@@ -8,7 +10,7 @@
 #![allow(renamed_and_removed_lints)]
 
 use jsonwebtoken::errors::Result;
-use jsonwebtoken::TokenData;
+use jsonwebtoken::{Algorithm, TokenData};
 use jsonwebtoken::{DecodingKey, EncodingKey};
 use jsonwebtoken::{Header, Validation};
 
@@ -18,6 +20,7 @@ use rocket::request::{self, FromRequest, Request};
 use rocket::response::status;
 use rocket::serde::{Deserialize, Serialize};
 
+use rocket::State;
 use rocket_okapi::okapi::map;
 use rocket_okapi::okapi::openapi3::{
     Object, SecurityRequirement, SecurityScheme, SecuritySchemeData,
@@ -26,6 +29,18 @@ use rocket_okapi::{
     gen::OpenApiGenerator,
     request::{OpenApiFromRequest, RequestHeaderInput},
 };
+use rsa::pkcs8::EncodePrivateKey;
+use rsa::pkcs8::EncodePublicKey;
+use rsa::{pkcs8::LineEnding, RsaPrivateKey, RsaPublicKey};
+
+const KEY_BITS: usize = 3072;
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
+pub struct KeyPair {
+    pub priv_key: String,
+    pub pub_key: String,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(crate = "rocket::serde", rename_all = "camelCase")]
@@ -119,7 +134,8 @@ impl<'r> FromRequest<'r> for UserToken {
             let authen_str = authen_header.to_string();
             if authen_str.starts_with("Bearer") {
                 let token = authen_str[6..authen_str.len()].trim();
-                if let Ok(token_data) = decode_token(token.to_string()) {
+                let pub_key = &req.rocket().state::<KeyPair>().unwrap().pub_key;
+                if let Ok(token_data) = decode_token(token.to_string(), pub_key.to_string()) {
                     return Outcome::Success(token_data.claims);
                 }
             }
@@ -137,21 +153,60 @@ impl<'r> FromRequest<'r> for UserToken {
     }
 }
 
-const MY_NOT_SO_SECRET_KEY: &[u8; 8] = b"abcdefgh";
+// const MY_NOT_SO_SECRET_KEY: &[u8; 8] = b"abcdefgh";
 
-fn decode_token(token: String) -> Result<TokenData<UserToken>> {
-    let v = Validation {
-        validate_exp: false,
-        ..Default::default()
-    };
-    jsonwebtoken::decode::<UserToken>(&token, &DecodingKey::from_secret(MY_NOT_SO_SECRET_KEY), &v)
+pub fn generate_keys() -> KeyPair {
+    let mut rng = rand::thread_rng();
+
+    let private_key = RsaPrivateKey::new(&mut rng, KEY_BITS).expect("failed to generate a key");
+    let public_key = RsaPublicKey::from(&private_key);
+
+    let priv_key = private_key
+        .to_pkcs8_pem(LineEnding::default())
+        .expect("could not serialize private key")
+        .deref()
+        .clone();
+    let pub_key = public_key
+        .to_public_key_pem(LineEnding::default())
+        .expect("could not serialize public key");
+
+    KeyPair { priv_key, pub_key }
 }
 
-pub fn encode_token(u: &UserToken) -> Result<String> {
+fn decode_token(token: String, pub_key: String) -> Result<TokenData<UserToken>> {
+    jsonwebtoken::decode::<UserToken>(
+        &token,
+        &DecodingKey::from_rsa_pem(pub_key.as_bytes()).unwrap(),
+        &Validation::new(Algorithm::RS256),
+    )
+}
+
+pub fn encode_token(u: &UserToken, priv_key: String) -> Result<String> {
+    // let mut header = Header::new(Algorithm::RS256);
+    // header.typ = Some("JWT".to_string());
+    // header.jwk = Some(Jwk {
+    //     common: CommonParameters {
+    //         public_key_use: Some(PublicKeyUse::Signature),
+    //         key_operations: None,
+    //         key_algorithm: Some(KeyAlgorithm::RS256),
+    //         key_id: Some("Public key".to_string()),
+    //         x509_url: None,
+    //         x509_chain: None,
+    //         x509_sha1_fingerprint: None,
+    //         x509_sha256_fingerprint: None,
+    //     },
+    //     algorithm: AlgorithmParameters::RSA(RSAKeyParameters {
+    //         key_type: jsonwebtoken::jwk::RSAKeyType::RSA,
+    //         n: pub_key.n().to_string(),
+    //         e: pub_key.e().to_string(),
+    //     }),
+    // });
+    let header = Header::new(Algorithm::RS256);
+
     jsonwebtoken::encode(
-        &Header::default(),
+        &header,
         u,
-        &EncodingKey::from_secret(MY_NOT_SO_SECRET_KEY),
+        &EncodingKey::from_rsa_pem(priv_key.as_bytes()).unwrap(),
     )
 }
 

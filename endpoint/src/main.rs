@@ -18,7 +18,7 @@ mod sample_data;
 
 use std::cmp::min;
 
-use auth::UserToken;
+use auth::{generate_keys, UserToken};
 use chrono::{DateTime, Utc};
 use either::Either;
 
@@ -29,6 +29,7 @@ use rocket::form::Form;
 use rocket::request::FromRequest;
 
 use rocket::serde::json::Json;
+use rocket::State;
 use rocket_okapi::rapidoc::{
     make_rapidoc, GeneralConfig, HideShowConfig, RapiDocConfig, Theme, UiConfig,
 };
@@ -40,11 +41,14 @@ use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};
 use api_types::*;
 use datamodel::{PfId, ProductFootprint};
 use openid_conf::OpenIdConfiguration;
+use rsa::{RsaPrivateKey, RsaPublicKey};
 use sample_data::PCF_DEMO_DATA;
 use Either::Left;
 
 #[cfg(test)]
 use rocket::local::blocking::Client;
+
+use crate::auth::KeyPair;
 
 // minimum number of results to return from Action `ListFootprints`
 const ACTION_LIST_FOOTPRINTS_MIN_RESULTS: usize = 10;
@@ -72,9 +76,14 @@ fn openid_configuration() -> Json<OpenIdConfiguration> {
 fn oauth2_create_token(
     req: auth::OAuth2ClientCredentials,
     body: Form<auth::OAuth2ClientCredentialsBody<'_>>,
+    state: &State<KeyPair>,
 ) -> Either<Json<auth::OAuth2TokenReply>, error::OAuth2ErrorMessage> {
     if req.id == AUTH_USERNAME && req.secret == AUTH_PASSWORD {
-        let access_token = auth::encode_token(&auth::UserToken { username: req.id }).unwrap();
+        let access_token = auth::encode_token(
+            &auth::UserToken { username: req.id },
+            state.priv_key.clone(),
+        )
+        .unwrap();
 
         let reply = auth::OAuth2TokenReply {
             access_token,
@@ -451,6 +460,7 @@ fn create_server() -> rocket::Rocket<rocket::Build> {
                 ..Default::default()
             }),
         )
+        .manage(generate_keys())
         .register("/", catchers![bad_request, default_handler])
 }
 
@@ -542,7 +552,9 @@ fn get_list_test() {
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token).ok().unwrap();
+    let jwt = auth::encode_token(&token, generate_keys().priv_key)
+        .ok()
+        .unwrap();
     let bearer_token = format!("Bearer {jwt}");
     let client = &Client::tracked(create_server()).unwrap();
 
@@ -580,7 +592,9 @@ fn get_list_with_filter_eq_test() {
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token).ok().unwrap();
+    let jwt = auth::encode_token(&token, generate_keys().priv_key)
+        .ok()
+        .unwrap();
     let bearer_token = format!("Bearer {jwt}");
     let client = &Client::tracked(create_server()).unwrap();
 
@@ -602,7 +616,9 @@ fn get_list_with_filter_lt_test() {
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token).ok().unwrap();
+    let jwt = auth::encode_token(&token, generate_keys().priv_key)
+        .ok()
+        .unwrap();
     let bearer_token = format!("Bearer {jwt}");
     let client = &Client::tracked(create_server()).unwrap();
 
@@ -624,7 +640,9 @@ fn get_list_with_filter_eq_and_lt_test() {
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token).ok().unwrap();
+    let jwt = auth::encode_token(&token, generate_keys().priv_key)
+        .ok()
+        .unwrap();
     let bearer_token = format!("Bearer {jwt}");
     let client = &Client::tracked(create_server()).unwrap();
 
@@ -646,7 +664,9 @@ fn get_list_with_filter_any_test() {
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token).ok().unwrap();
+    let jwt = auth::encode_token(&token, generate_keys().priv_key)
+        .ok()
+        .unwrap();
     let bearer_token = format!("Bearer {jwt}");
     let client = &Client::tracked(create_server()).unwrap();
 
@@ -685,7 +705,9 @@ fn get_list_with_limit_test() {
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token).ok().unwrap();
+    let jwt = auth::encode_token(&token, generate_keys().priv_key)
+        .ok()
+        .unwrap();
     let bearer_token = format!("Bearer {jwt}");
     let client = &Client::tracked(create_server()).unwrap();
 
@@ -752,7 +774,9 @@ fn post_events_test() {
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token).ok().unwrap();
+    let jwt = auth::encode_token(&token, generate_keys().priv_key)
+        .ok()
+        .unwrap();
     let bearer_token = format!("Bearer {jwt}");
     let client = &Client::tracked(create_server()).unwrap();
 
@@ -810,7 +834,9 @@ fn get_pcf_test() {
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token).ok().unwrap();
+    let jwt = auth::encode_token(&token, generate_keys().priv_key)
+        .ok()
+        .unwrap();
     let bearer_token = format!("Bearer {jwt}");
     let client = &Client::tracked(create_server()).unwrap();
 
