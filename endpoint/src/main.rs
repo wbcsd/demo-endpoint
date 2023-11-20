@@ -62,14 +62,16 @@ const ACTION_LIST_FOOTPRINTS_MIN_RESULTS: usize = 10;
 const AUTH_USERNAME: &str = "hello";
 const AUTH_PASSWORD: &str = "pathfinder";
 
+const API_URL: &str = "https://api.pathfinder.sine.dev";
+
 /// endpoint to retrieve the OpenId configuration document with the token_endpoint
 #[get("/2/.well-known/openid-configuration")]
 fn openid_configuration() -> Json<OpenIdConfiguration> {
     let openid_conf = OpenIdConfiguration {
-        token_endpoint: format!("https://api.pathfinder.sine.de/2/auth/token"),
-        issuer: url::Url::parse("https://api.pathfinder.sine.dev").unwrap(),
-        authorization_endpoint: format!("https://api.pathfinder.sine.de/2/auth/token"),
-        jwks_uri: format!("not-implemented-yet"),
+        token_endpoint: format!("{API_URL}/2/auth/token"),
+        issuer: url::Url::parse(API_URL).unwrap(),
+        authorization_endpoint: format!("{API_URL}/2/auth/token"),
+        jwks_uri: format!("{API_URL}/2/jwks"),
         response_types_supported: vec![format!("token")],
         subject_types_supported: vec![format!("public")],
         id_token_signing_alg_values_supported: vec![format!("RS256")],

@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::ops::Deref;
 
 /*
@@ -139,9 +140,13 @@ impl<'r> FromRequest<'r> for UserToken {
             if authen_str.starts_with("Bearer") {
                 let token = authen_str[6..authen_str.len()].trim();
                 let pub_key = &req.rocket().state::<KeyPair>().unwrap().pub_key;
-                if let Ok(token_data) = decode_token(token.to_string(), pub_key.to_string()) {
-                    return Outcome::Success(token_data.claims);
+                match decode_token(token.to_string(), pub_key.to_string()) {
+                    Ok(token_data) => return Outcome::Success(token_data.claims),
+                    Err(e) => println!("error: {:?}", e),
                 }
+                // if let Ok(token_data) = decode_token(token.to_string(), pub_key.to_string()) {
+                //     return Outcome::Success(token_data.claims);
+                // }
             }
 
             Outcome::Failure((
@@ -180,6 +185,9 @@ pub fn generate_keys() -> KeyPair {
 fn decode_token(token: String, pub_key: String) -> Result<TokenData<UserToken>> {
     let mut v = Validation::new(Algorithm::RS256);
     v.validate_exp = false;
+    v.required_spec_claims = HashSet::new();
+
+    println!("{v:?}");
 
     jsonwebtoken::decode::<UserToken>(
         &token,
@@ -189,25 +197,6 @@ fn decode_token(token: String, pub_key: String) -> Result<TokenData<UserToken>> 
 }
 
 pub fn encode_token(u: &UserToken, priv_key: String) -> Result<String> {
-    // let mut header = Header::new(Algorithm::RS256);
-    // header.typ = Some("JWT".to_string());
-    // header.jwk = Some(Jwk {
-    //     common: CommonParameters {
-    //         public_key_use: Some(PublicKeyUse::Signature),
-    //         key_operations: None,
-    //         key_algorithm: Some(KeyAlgorithm::RS256),
-    //         key_id: Some("Public key".to_string()),
-    //         x509_url: None,
-    //         x509_chain: None,
-    //         x509_sha1_fingerprint: None,
-    //         x509_sha256_fingerprint: None,
-    //     },
-    //     algorithm: AlgorithmParameters::RSA(RSAKeyParameters {
-    //         key_type: jsonwebtoken::jwk::RSAKeyType::RSA,
-    //         n: pub_key.n().to_string(),
-    //         e: pub_key.e().to_string(),
-    //     }),
-    // });
     let header = Header::new(Algorithm::RS256);
 
     jsonwebtoken::encode(
