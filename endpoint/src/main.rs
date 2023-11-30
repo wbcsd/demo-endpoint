@@ -16,11 +16,10 @@ mod error;
 mod openid_conf;
 mod sample_data;
 
-use std::cmp::min;
-
 use auth::{generate_keys, UserToken};
 use chrono::{DateTime, Utc};
 use either::Either;
+use std::cmp::min;
 
 use jsonwebtoken::jwk::{
     AlgorithmParameters, CommonParameters, Jwk, JwkSet, KeyAlgorithm, PublicKeyUse,
@@ -28,7 +27,6 @@ use jsonwebtoken::jwk::{
 };
 use lambda_web::{is_running_on_lambda, launch_rocket_on_lambda, LambdaError};
 use okapi::openapi3::{Object, Parameter, ParameterValue};
-use rocket::catch;
 use rocket::form::Form;
 use rocket::request::FromRequest;
 
@@ -45,7 +43,7 @@ use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};
 use api_types::*;
 use datamodel::{PfId, ProductFootprint};
 use openid_conf::OpenIdConfiguration;
-use rsa::pkcs8::{self, DecodePublicKey};
+use rsa::pkcs8::{self};
 use rsa::traits::PublicKeyParts;
 use rsa::RsaPublicKey;
 use sample_data::PCF_DEMO_DATA;
@@ -81,9 +79,9 @@ fn openid_configuration() -> Json<OpenIdConfiguration> {
 
 #[get("/2/jwks")]
 fn jwks(state: &State<KeyPair>) -> Json<JwkSet> {
-    println!("{:?}", state.pub_key);
     let pub_key: RsaPublicKey =
         pkcs8::DecodePublicKey::from_public_key_pem(&state.pub_key).unwrap();
+
     let jwks = JwkSet {
         keys: vec![Jwk {
             common: CommonParameters {
@@ -98,8 +96,8 @@ fn jwks(state: &State<KeyPair>) -> Json<JwkSet> {
             },
             algorithm: AlgorithmParameters::RSA(RSAKeyParameters {
                 key_type: jsonwebtoken::jwk::RSAKeyType::RSA,
-                n: pub_key.n().to_string(),
-                e: pub_key.e().to_string(),
+                n: base64::encode_config(pub_key.n().to_bytes_be(), base64::URL_SAFE_NO_PAD),
+                e: base64::encode_config(pub_key.e().to_bytes_be(), base64::URL_SAFE_NO_PAD),
             }),
         }],
     };
@@ -586,15 +584,56 @@ fn post_auth_action_test() {
 }
 
 #[test]
-fn get_list_test() {
+fn verify_token_signature_test() {
+    use jsonwebtoken::decode;
+    use jsonwebtoken::Algorithm;
+    use jsonwebtoken::DecodingKey;
+    use jsonwebtoken::Validation;
+    use std::collections::HashSet;
+
+    let client = &Client::tracked(create_server()).unwrap();
+
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token, generate_keys().priv_key)
-        .ok()
-        .unwrap();
-    let bearer_token = format!("Bearer {jwt}");
+
+    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+
+    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
+
+    let response = client.get("/2/jwks").dispatch();
+
+    let jwks: JwkSet = response.into_json().unwrap();
+
+    let jwk = jwks.keys.first().unwrap();
+
+    let decoding_key = DecodingKey::from_jwk(&jwk).unwrap();
+
+    let mut v = Validation::new(Algorithm::RS256);
+    v.validate_exp = false;
+    v.required_spec_claims = HashSet::from(["username".to_string()]);
+
+    assert_eq!(
+        token.username,
+        decode::<auth::UserToken>(&jwt, &decoding_key, &v)
+            .unwrap()
+            .claims
+            .username
+    );
+}
+
+#[test]
+fn get_list_test() {
     let client = &Client::tracked(create_server()).unwrap();
+
+    let token = UserToken {
+        username: "hello".to_string(),
+    };
+
+    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+
+    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
+    let bearer_token = format!("Bearer {jwt}");
 
     let get_list_uri = "/2/footprints";
 
@@ -627,14 +666,16 @@ fn get_list_test() {
 
 #[test]
 fn get_list_with_filter_eq_test() {
+    let client = &Client::tracked(create_server()).unwrap();
+
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token, generate_keys().priv_key)
-        .ok()
-        .unwrap();
+
+    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+
+    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
-    let client = &Client::tracked(create_server()).unwrap();
 
     let get_list_with_limit_uri = "/2/footprints?$filter=pcf/geographyCountry+eq+'FR'";
 
@@ -651,14 +692,17 @@ fn get_list_with_filter_eq_test() {
 
 #[test]
 fn get_list_with_filter_lt_test() {
+    let client = &Client::tracked(create_server()).unwrap();
+
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token, generate_keys().priv_key)
-        .ok()
-        .unwrap();
+
+    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+
+    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
+
     let bearer_token = format!("Bearer {jwt}");
-    let client = &Client::tracked(create_server()).unwrap();
 
     let get_list_with_limit_uri = "/2/footprints?$filter=updated+lt+'2023-01-01T00:00:00.000Z'";
 
@@ -675,14 +719,16 @@ fn get_list_with_filter_lt_test() {
 
 #[test]
 fn get_list_with_filter_eq_and_lt_test() {
+    let client = &Client::tracked(create_server()).unwrap();
+
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token, generate_keys().priv_key)
-        .ok()
-        .unwrap();
+
+    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+
+    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
-    let client = &Client::tracked(create_server()).unwrap();
 
     let get_list_with_limit_uri = "/2/footprints?$filter=(pcf/geographyCountry+eq+'FR')+and+(updated+lt+'2023-01-01T00:00:00.000Z')";
 
@@ -699,14 +745,16 @@ fn get_list_with_filter_eq_and_lt_test() {
 
 #[test]
 fn get_list_with_filter_any_test() {
+    let client = &Client::tracked(create_server()).unwrap();
+
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token, generate_keys().priv_key)
-        .ok()
-        .unwrap();
+
+    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+
+    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
-    let client = &Client::tracked(create_server()).unwrap();
 
     let get_list_with_limit_uri =
         "/2/footprints?$filter=productIds/any(productId:(productId+eq+'urn:gtin:4712345060507'))";
@@ -740,14 +788,16 @@ fn get_list_with_filter_any_test() {
 
 #[test]
 fn get_list_with_limit_test() {
+    let client = &Client::tracked(create_server()).unwrap();
+
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token, generate_keys().priv_key)
-        .ok()
-        .unwrap();
+
+    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+
+    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
-    let client = &Client::tracked(create_server()).unwrap();
 
     let get_list_with_limit_uri = "/2/footprints?limit=3";
     let expected_next_link1 = "/2/footprints?offset=3&limit=3";
@@ -809,14 +859,16 @@ fn get_list_with_limit_test() {
 
 #[test]
 fn post_events_test() {
+    let client = &Client::tracked(create_server()).unwrap();
+
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token, generate_keys().priv_key)
-        .ok()
-        .unwrap();
+
+    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+
+    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
-    let client = &Client::tracked(create_server()).unwrap();
 
     let post_events_uri = "/2/events";
 
@@ -869,14 +921,16 @@ fn post_events_test() {
 
 #[test]
 fn get_pcf_test() {
+    let client = &Client::tracked(create_server()).unwrap();
+
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token, generate_keys().priv_key)
-        .ok()
-        .unwrap();
+
+    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+
+    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
-    let client = &Client::tracked(create_server()).unwrap();
 
     // test auth
     for pf in PCF_DEMO_DATA.iter() {

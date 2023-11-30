@@ -21,7 +21,6 @@ use rocket::request::{self, FromRequest, Request};
 use rocket::response::status;
 use rocket::serde::{Deserialize, Serialize};
 
-use rocket::State;
 use rocket_okapi::okapi::map;
 use rocket_okapi::okapi::openapi3::{
     Object, SecurityRequirement, SecurityScheme, SecuritySchemeData,
@@ -140,13 +139,9 @@ impl<'r> FromRequest<'r> for UserToken {
             if authen_str.starts_with("Bearer") {
                 let token = authen_str[6..authen_str.len()].trim();
                 let pub_key = &req.rocket().state::<KeyPair>().unwrap().pub_key;
-                match decode_token(token.to_string(), pub_key.to_string()) {
-                    Ok(token_data) => return Outcome::Success(token_data.claims),
-                    Err(e) => println!("error: {:?}", e),
+                if let Ok(token_data) = decode_token(token.to_string(), pub_key.to_string()) {
+                    return Outcome::Success(token_data.claims);
                 }
-                // if let Ok(token_data) = decode_token(token.to_string(), pub_key.to_string()) {
-                //     return Outcome::Success(token_data.claims);
-                // }
             }
 
             Outcome::Failure((
@@ -186,8 +181,6 @@ fn decode_token(token: String, pub_key: String) -> Result<TokenData<UserToken>> 
     let mut v = Validation::new(Algorithm::RS256);
     v.validate_exp = false;
     v.required_spec_claims = HashSet::new();
-
-    println!("{v:?}");
 
     jsonwebtoken::decode::<UserToken>(
         &token,
