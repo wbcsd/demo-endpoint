@@ -131,10 +131,6 @@ impl<'r> FromRequest<'r> for UserToken {
         req: &'r Request<'_>,
     ) -> request::Outcome<Self, status::Custom<UserTokenError>> {
         if let Some(authen_header) = req.headers().get_one("Authorization") {
-            println!(
-                "request state: {:?}",
-                req.rocket().state::<KeyPair>().unwrap()
-            );
             let authen_str = authen_header.to_string();
             if authen_str.starts_with("Bearer") {
                 let token = authen_str[6..authen_str.len()].trim();
@@ -156,8 +152,6 @@ impl<'r> FromRequest<'r> for UserToken {
         }
     }
 }
-
-// const MY_NOT_SO_SECRET_KEY: &[u8; 8] = b"abcdefgh";
 
 pub fn generate_keys() -> KeyPair {
     let mut rng = rand::thread_rng();

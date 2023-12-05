@@ -77,6 +77,7 @@ fn openid_configuration() -> Json<OpenIdConfiguration> {
     Json(openid_conf)
 }
 
+/// endpoint to retrieve the Json Web Key Set to verify the token's signature
 #[get("/2/jwks")]
 fn jwks(state: &State<KeyPair>) -> Json<JwkSet> {
     let pub_key: RsaPublicKey =
@@ -585,10 +586,7 @@ fn post_auth_action_test() {
 
 #[test]
 fn verify_token_signature_test() {
-    use jsonwebtoken::decode;
-    use jsonwebtoken::Algorithm;
-    use jsonwebtoken::DecodingKey;
-    use jsonwebtoken::Validation;
+    use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
     use std::collections::HashSet;
 
     let client = &Client::tracked(create_server()).unwrap();
