@@ -605,7 +605,7 @@ fn verify_token_signature_test() {
 
     let jwk = jwks.keys.first().unwrap();
 
-    let decoding_key = DecodingKey::from_jwk(&jwk).unwrap();
+    let decoding_key = DecodingKey::from_jwk(jwk).unwrap();
 
     let mut v = Validation::new(Algorithm::RS256);
     v.validate_exp = false;
