@@ -212,11 +212,11 @@ fn filtered_data(filter: Option<&'_ str>) -> Result<Vec<ProductFootprint>, Strin
                                         .unwrap_or_default()
                                 })
                                 .unwrap_or_default(),
-                            "pcf/reportingPeriodStart" => {
-                                pf.pcf.reporting_period_start.to_string() == value
+                            "pcf/referencePeriodStart" => {
+                                pf.pcf.reference_period_start.to_string() == value
                             }
-                            "pcf/reportingPeriodEnd" => {
-                                pf.pcf.reporting_period_end.to_string() == value
+                            "pcf/referencePeriodEnd" => {
+                                pf.pcf.reference_period_end.to_string() == value
                             }
                             _ => {
                                 return Err(format!("Unsupported property {property}"));
@@ -235,8 +235,8 @@ fn filtered_data(filter: Option<&'_ str>) -> Result<Vec<ProductFootprint>, Strin
                         let v = match property {
                             "created" => Some(pf.created),
                             "updated" => pf.updated,
-                            "pcf/reportingPeriodStart" => Some(pf.pcf.reporting_period_start),
-                            "pcf/reportingPeriodEnd" => Some(pf.pcf.reporting_period_end),
+                            "pcf/referencePeriodStart" => Some(pf.pcf.reference_period_start),
+                            "pcf/referencePeriodEnd" => Some(pf.pcf.reference_period_end),
                             _ => {
                                 return Err(format!("Unsupported property {property}"));
                             }

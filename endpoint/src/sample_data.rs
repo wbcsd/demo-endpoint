@@ -23,8 +23,8 @@ lazy_static! {
             name: String::from("Ecoinvent").into(),
             version: String::from("1.2.3").into(),
         }])),
-        reporting_period_start: *TIME_PERIOD_START,
-        reporting_period_end: *TIME_PERIOD_END,
+        reference_period_start: *TIME_PERIOD_START,
+        reference_period_end: *TIME_PERIOD_END,
         /*geography_region_or_subregion: None,
         geography_country: Some(ISO3166CC(String::from("FR"))),
         geography_country_subdivision: None, */

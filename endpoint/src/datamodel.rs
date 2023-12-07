@@ -83,8 +83,8 @@ pub struct CarbonFootprint {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub boundary_processes_description: Option<String>,
 
-    pub reporting_period_start: DateTime<Utc>,
-    pub reporting_period_end: DateTime<Utc>,
+    pub reference_period_start: DateTime<Utc>,
+    pub reference_period_end: DateTime<Utc>,
 
     #[serde(flatten)]
     #[serde(skip_serializing_if = "Option::is_none")]
