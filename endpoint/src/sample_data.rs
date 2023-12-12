@@ -56,7 +56,7 @@ lazy_static! {
         packaging_emissions_included: false,
         packaging_ghg_emissions: None,
         p_cf_excluding_biogenic: dec!(0.0).into(),
-        p_cf_including_biogenic: dec!(0.0).into(),
+        p_cf_including_biogenic: Some(dec!(0.0).into()),
         uncertainty_assessment_description: None,
     };
 }

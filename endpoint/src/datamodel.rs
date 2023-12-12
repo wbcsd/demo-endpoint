@@ -52,7 +52,8 @@ pub struct CarbonFootprint {
     pub declared_unit: DeclaredUnit,
     pub unitary_product_amount: StrictlyPositiveDecimal,
     pub p_cf_excluding_biogenic: PositiveDecimal,
-    pub p_cf_including_biogenic: WrappedDecimal,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub p_cf_including_biogenic: Option<WrappedDecimal>,
     pub fossil_ghg_emissions: PositiveDecimal,
     pub fossil_carbon_content: PositiveDecimal,
     pub biogenic_carbon_content: PositiveDecimal,
@@ -86,7 +87,6 @@ pub struct CarbonFootprint {
     pub reference_period_start: DateTime<Utc>,
     pub reference_period_end: DateTime<Utc>,
 
-    #[serde(flatten)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub geographic_scope: Option<GeographicScope>,
 
