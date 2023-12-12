@@ -363,6 +363,8 @@ pub struct DataQualityIndicators {
 #[serde(crate = "rocket::serde", rename_all = "camelCase")]
 /// Data Type "Assurance" of Spec Version 2
 pub struct Assurance {
+    pub assurance: bool,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub coverage: Option<AssuranceCoverage>,
 
@@ -374,7 +376,7 @@ pub struct Assurance {
 
     pub provider_name: String,
     pub completed_at: DateTime<Utc>,
-    pub standard: String,
+    pub standard_name: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comments: Option<String>,
