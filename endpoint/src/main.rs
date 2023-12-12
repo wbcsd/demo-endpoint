@@ -533,7 +533,7 @@ fn get_list_test() {
     // test auth
     {
         let resp = client
-            .get(get_list_uri.clone())
+            .get(get_list_uri)
             .header(rocket::http::Header::new("Authorization", bearer_token))
             .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
             .dispatch();
@@ -569,7 +569,7 @@ fn get_list_with_filter_eq_test() {
     let get_list_with_limit_uri = "/2/footprints?$filter=pcf/geographyCountry+eq+'FR'";
 
     let resp = client
-        .get(get_list_with_limit_uri.clone())
+        .get(get_list_with_limit_uri)
         .header(rocket::http::Header::new("Authorization", bearer_token))
         .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
         .dispatch();
@@ -591,7 +591,7 @@ fn get_list_with_filter_lt_test() {
     let get_list_with_limit_uri = "/2/footprints?$filter=updated+lt+'2023-01-01T00:00:00.000Z'";
 
     let resp = client
-        .get(get_list_with_limit_uri.clone())
+        .get(get_list_with_limit_uri)
         .header(rocket::http::Header::new("Authorization", bearer_token))
         .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
         .dispatch();
@@ -613,7 +613,7 @@ fn get_list_with_filter_eq_and_lt_test() {
     let get_list_with_limit_uri = "/2/footprints?$filter=(pcf/geographyCountry+eq+'FR')+and+(updated+lt+'2023-01-01T00:00:00.000Z')";
 
     let resp = client
-        .get(get_list_with_limit_uri.clone())
+        .get(get_list_with_limit_uri)
         .header(rocket::http::Header::new("Authorization", bearer_token))
         .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
         .dispatch();
@@ -636,7 +636,7 @@ fn get_list_with_filter_any_test() {
         "/2/footprints?$filter=productIds/any(productId:(productId+eq+'urn:gtin:4712345060507'))";
 
     let resp = client
-        .get(get_list_with_limit_uri.clone())
+        .get(get_list_with_limit_uri)
         .header(rocket::http::Header::new(
             "Authorization",
             bearer_token.clone(),
@@ -652,7 +652,7 @@ fn get_list_with_filter_any_test() {
         "/2/footprints?$filter=productIds/any(productId:(productId+eq+'urn:gtin:12345'))";
 
     let resp = client
-        .get(get_list_with_limit_uri.clone())
+        .get(get_list_with_limit_uri)
         .header(rocket::http::Header::new("Authorization", bearer_token))
         .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
         .dispatch();
@@ -677,7 +677,7 @@ fn get_list_with_limit_test() {
 
     {
         let resp = client
-            .get(get_list_with_limit_uri.clone())
+            .get(get_list_with_limit_uri)
             .header(rocket::http::Header::new(
                 "Authorization",
                 bearer_token.clone(),
@@ -743,7 +743,7 @@ fn post_events_test() {
     // test GET request to POST endpoint
     {
         let resp = client
-            .get(post_events_uri.clone())
+            .get(post_events_uri)
             .header(rocket::http::Header::new(
                 "Authorization",
                 bearer_token.clone(),
@@ -754,7 +754,7 @@ fn post_events_test() {
 
     // test unauth request
     {
-        let resp = client.post(post_events_uri.clone()).dispatch();
+        let resp = client.post(post_events_uri).dispatch();
         assert_eq!(rocket::http::Status::Forbidden, resp.status());
     }
 
@@ -779,7 +779,7 @@ fn post_events_test() {
             ),
         };
         let resp = client
-            .post(post_events_uri.clone())
+            .post(post_events_uri)
             .header(rocket::http::Header::new("Authorization", bearer_token))
             .json(&event)
             .dispatch();
@@ -826,7 +826,7 @@ fn get_pcf_test() {
     {
         let get_pcf_uri = "/2/footprints/abc";
         let resp = client
-            .get(get_pcf_uri.clone())
+            .get(get_pcf_uri)
             .header(rocket::http::Header::new(
                 "Authorization",
                 bearer_token.clone(),
@@ -838,7 +838,7 @@ fn get_pcf_test() {
     {
         let get_pcf_uri = "/2/footprints/16d8e365-698f-4694-bcad-a56e06a45afd";
         let resp = client
-            .get(get_pcf_uri.clone())
+            .get(get_pcf_uri)
             .header(rocket::http::Header::new("Authorization", bearer_token))
             .dispatch();
         assert_eq!(rocket::http::Status::Forbidden, resp.status());
