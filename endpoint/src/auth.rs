@@ -35,7 +35,7 @@ use rsa::{pkcs8::LineEnding, RsaPrivateKey, RsaPublicKey};
 
 const KEY_BITS: usize = 2048;
 
-//#[derive(Debug)]
+#[derive(Clone)]
 pub struct KeyPair {
     pub pub_key: RsaPublicKey,
     enc_key: EncodingKey,
