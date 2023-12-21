@@ -359,7 +359,7 @@ pub struct DataQualityIndicators {
     pub reliability_d_q_r: StrictlyPositiveDecimal,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq, Default)]
 #[serde(crate = "rocket::serde", rename_all = "camelCase")]
 /// Data Type "Assurance" of Spec Version 2
 pub struct Assurance {
@@ -375,8 +375,12 @@ pub struct Assurance {
     pub boundary: Option<AssuranceBoundary>,
 
     pub provider_name: String,
-    pub completed_at: DateTime<Utc>,
-    pub standard_name: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<DateTime<Utc>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub standard_name: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comments: Option<String>,
