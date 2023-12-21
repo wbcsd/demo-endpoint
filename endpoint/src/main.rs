@@ -43,9 +43,7 @@ use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};
 use api_types::*;
 use datamodel::{PfId, ProductFootprint};
 use openid_conf::OpenIdConfiguration;
-use rsa::pkcs8::{self};
 use rsa::traits::PublicKeyParts;
-use rsa::RsaPublicKey;
 use sample_data::PCF_DEMO_DATA;
 use Either::Left;
 
@@ -80,8 +78,7 @@ fn openid_configuration() -> Json<OpenIdConfiguration> {
 /// endpoint to retrieve the Json Web Key Set to verify the token's signature
 #[get("/2/jwks")]
 fn jwks(state: &State<KeyPair>) -> Json<JwkSet> {
-    let pub_key: RsaPublicKey =
-        pkcs8::DecodePublicKey::from_public_key_pem(&state.pub_key).unwrap();
+    let pub_key = &state.pub_key;
 
     let jwks = JwkSet {
         keys: vec![Jwk {
@@ -113,14 +110,9 @@ fn oauth2_create_token(
     body: Form<auth::OAuth2ClientCredentialsBody<'_>>,
     state: &State<KeyPair>,
 ) -> Either<Json<auth::OAuth2TokenReply>, error::OAuth2ErrorMessage> {
-    println!("{state:?}");
-
     if req.id == AUTH_USERNAME && req.secret == AUTH_PASSWORD {
-        let access_token = auth::encode_token(
-            &auth::UserToken { username: req.id },
-            state.priv_key.clone(),
-        )
-        .unwrap();
+        let access_token =
+            auth::encode_token(&auth::UserToken { username: req.id }, state).unwrap();
 
         let reply = auth::OAuth2TokenReply {
             access_token,
@@ -595,9 +587,9 @@ fn verify_token_signature_test() {
         username: "hello".to_string(),
     };
 
-    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
 
-    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
 
     let response = client.get("/2/jwks").dispatch();
 
@@ -628,9 +620,9 @@ fn get_list_test() {
         username: "hello".to_string(),
     };
 
-    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
 
-    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
 
     let get_list_uri = "/2/footprints";
@@ -670,9 +662,9 @@ fn get_list_with_filter_eq_test() {
         username: "hello".to_string(),
     };
 
-    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
 
-    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
 
     let get_list_with_limit_uri = "/2/footprints?$filter=pcf/geographyCountry+eq+'FR'";
@@ -696,9 +688,9 @@ fn get_list_with_filter_lt_test() {
         username: "hello".to_string(),
     };
 
-    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
 
-    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
 
     let bearer_token = format!("Bearer {jwt}");
 
@@ -723,9 +715,9 @@ fn get_list_with_filter_eq_and_lt_test() {
         username: "hello".to_string(),
     };
 
-    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
 
-    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
 
     let get_list_with_limit_uri = "/2/footprints?$filter=(pcf/geographyCountry+eq+'FR')+and+(updated+lt+'2023-01-01T00:00:00.000Z')";
@@ -749,9 +741,9 @@ fn get_list_with_filter_any_test() {
         username: "hello".to_string(),
     };
 
-    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
 
-    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
 
     let get_list_with_limit_uri =
@@ -792,9 +784,9 @@ fn get_list_with_limit_test() {
         username: "hello".to_string(),
     };
 
-    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
 
-    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
 
     let get_list_with_limit_uri = "/2/footprints?limit=3";
@@ -863,9 +855,9 @@ fn post_events_test() {
         username: "hello".to_string(),
     };
 
-    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
 
-    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
 
     let post_events_uri = "/2/events";
@@ -925,9 +917,9 @@ fn get_pcf_test() {
         username: "hello".to_string(),
     };
 
-    let server_priv_key: String = client.rocket().state::<KeyPair>().unwrap().priv_key.clone();
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
 
-    let jwt = auth::encode_token(&token, server_priv_key).ok().unwrap();
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
 
     // test auth

@@ -35,11 +35,11 @@ use rsa::{pkcs8::LineEnding, RsaPrivateKey, RsaPublicKey};
 
 const KEY_BITS: usize = 2048;
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(crate = "rocket::serde")]
+//#[derive(Debug)]
 pub struct KeyPair {
-    pub priv_key: String,
-    pub pub_key: String,
+    pub pub_key: RsaPublicKey,
+    enc_key: EncodingKey,
+    dec_key: DecodingKey,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -123,6 +123,8 @@ fn decode_basic_auth(raw_auth_info: &str) -> Option<OAuth2ClientCredentials> {
     None
 }
 
+const BEARER_TOKEN_START: &str = "Bearer ";
+
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for UserToken {
     type Error = status::Custom<UserTokenError>;
@@ -132,10 +134,10 @@ impl<'r> FromRequest<'r> for UserToken {
     ) -> request::Outcome<Self, status::Custom<UserTokenError>> {
         if let Some(authen_header) = req.headers().get_one("Authorization") {
             let authen_str = authen_header.to_string();
-            if authen_str.starts_with("Bearer") {
-                let token = authen_str[6..authen_str.len()].trim();
-                let pub_key = &req.rocket().state::<KeyPair>().unwrap().pub_key;
-                if let Ok(token_data) = decode_token(token.to_string(), pub_key.to_string()) {
+            if authen_str.starts_with(BEARER_TOKEN_START) {
+                let token = authen_str[BEARER_TOKEN_START.len()..authen_str.len()].trim();
+                let key_pair = req.rocket().state::<KeyPair>().unwrap();
+                if let Ok(token_data) = decode_token(token.to_string(), key_pair) {
                     return Outcome::Success(token_data.claims);
                 }
             }
@@ -168,29 +170,28 @@ pub fn generate_keys() -> KeyPair {
         .to_public_key_pem(LineEnding::default())
         .expect("could not serialize public key");
 
-    KeyPair { priv_key, pub_key }
+    let dec_key = DecodingKey::from_rsa_pem(pub_key.as_bytes()).unwrap();
+    let enc_key = EncodingKey::from_rsa_pem(priv_key.as_bytes()).unwrap();
+
+    KeyPair {
+        pub_key: public_key,
+        enc_key,
+        dec_key,
+    }
 }
 
-fn decode_token(token: String, pub_key: String) -> Result<TokenData<UserToken>> {
+fn decode_token(token: String, key_pair: &KeyPair) -> Result<TokenData<UserToken>> {
     let mut v = Validation::new(Algorithm::RS256);
     v.validate_exp = false;
     v.required_spec_claims = HashSet::new();
 
-    jsonwebtoken::decode::<UserToken>(
-        &token,
-        &DecodingKey::from_rsa_pem(pub_key.as_bytes()).unwrap(),
-        &v,
-    )
+    jsonwebtoken::decode::<UserToken>(&token, &key_pair.dec_key, &v)
 }
 
-pub fn encode_token(u: &UserToken, priv_key: String) -> Result<String> {
+pub fn encode_token(u: &UserToken, key_pair: &KeyPair) -> Result<String> {
     let header = Header::new(Algorithm::RS256);
 
-    jsonwebtoken::encode(
-        &header,
-        u,
-        &EncodingKey::from_rsa_pem(priv_key.as_bytes()).unwrap(),
-    )
+    jsonwebtoken::encode(&header, u, &key_pair.enc_key)
 }
 
 impl<'a> OpenApiFromRequest<'a> for UserToken {
