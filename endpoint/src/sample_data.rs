@@ -45,7 +45,11 @@ lazy_static! {
         declared_unit: DeclaredUnit::Liter,
         unitary_product_amount: dec!(12.0).into(),
         aircraft_ghg_emissions: None,
-        assurance: None,
+        assurance: Some(Assurance {
+            assurance: true,
+            coverage: Some(AssuranceCoverage::ProductLevel),
+            ..Default::default()
+        }),
         biogenic_accounting_methodology: None,
         biogenic_carbon_withdrawal: None,
         characterization_factors: CharacterizationFactors::Ar5,
