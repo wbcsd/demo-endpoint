@@ -1,6 +1,3 @@
-use std::collections::HashSet;
-use std::ops::Deref;
-
 /*
  * Copyright (c) Martin Pompéry
  *
@@ -9,6 +6,9 @@ use std::ops::Deref;
  */
 
 #![allow(renamed_and_removed_lints)]
+
+use std::collections::HashSet;
+use std::ops::Deref;
 
 use jsonwebtoken::errors::Result;
 use jsonwebtoken::{Algorithm, TokenData};
