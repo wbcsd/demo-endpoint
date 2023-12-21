@@ -5,6 +5,9 @@
  * LICENSE file in the crate's root directory of this source tree.
  */
 //! Use Case 001 REST API-related type definitions
+
+#![allow(renamed_and_removed_lints)]
+
 use crate::datamodel::{PfId, ProductFootprint};
 use chrono::{DateTime, Utc};
 use okapi::openapi3::Responses;
