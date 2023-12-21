@@ -33,7 +33,7 @@ use rsa::pkcs8::EncodePrivateKey;
 use rsa::pkcs8::EncodePublicKey;
 use rsa::{pkcs8::LineEnding, RsaPrivateKey, RsaPublicKey};
 
-const KEY_BITS: usize = 3072;
+const KEY_BITS: usize = 2048;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
