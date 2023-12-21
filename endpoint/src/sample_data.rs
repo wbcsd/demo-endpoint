@@ -23,8 +23,8 @@ lazy_static! {
             name: String::from("Ecoinvent").into(),
             version: String::from("1.2.3").into(),
         }])),
-        reporting_period_start: *TIME_PERIOD_START,
-        reporting_period_end: *TIME_PERIOD_END,
+        reference_period_start: *TIME_PERIOD_START,
+        reference_period_end: *TIME_PERIOD_END,
         /*geography_region_or_subregion: None,
         geography_country: Some(ISO3166CC(String::from("FR"))),
         geography_country_subdivision: None, */
@@ -45,7 +45,11 @@ lazy_static! {
         declared_unit: DeclaredUnit::Liter,
         unitary_product_amount: dec!(12.0).into(),
         aircraft_ghg_emissions: None,
-        assurance: None,
+        assurance: Some(Assurance {
+            assurance: true,
+            coverage: Some(AssuranceCoverage::ProductLevel),
+            ..Default::default()
+        }),
         biogenic_accounting_methodology: None,
         biogenic_carbon_withdrawal: None,
         characterization_factors: CharacterizationFactors::Ar5,
@@ -56,7 +60,7 @@ lazy_static! {
         packaging_emissions_included: false,
         packaging_ghg_emissions: None,
         p_cf_excluding_biogenic: dec!(0.0).into(),
-        p_cf_including_biogenic: dec!(0.0).into(),
+        p_cf_including_biogenic: Some(dec!(0.0).into()),
         uncertainty_assessment_description: None,
     };
 }

@@ -52,7 +52,8 @@ pub struct CarbonFootprint {
     pub declared_unit: DeclaredUnit,
     pub unitary_product_amount: StrictlyPositiveDecimal,
     pub p_cf_excluding_biogenic: PositiveDecimal,
-    pub p_cf_including_biogenic: WrappedDecimal,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub p_cf_including_biogenic: Option<WrappedDecimal>,
     pub fossil_ghg_emissions: PositiveDecimal,
     pub fossil_carbon_content: PositiveDecimal,
     pub biogenic_carbon_content: PositiveDecimal,
@@ -83,10 +84,9 @@ pub struct CarbonFootprint {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub boundary_processes_description: Option<String>,
 
-    pub reporting_period_start: DateTime<Utc>,
-    pub reporting_period_end: DateTime<Utc>,
+    pub reference_period_start: DateTime<Utc>,
+    pub reference_period_end: DateTime<Utc>,
 
-    #[serde(flatten)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub geographic_scope: Option<GeographicScope>,
 
@@ -359,10 +359,12 @@ pub struct DataQualityIndicators {
     pub reliability_d_q_r: StrictlyPositiveDecimal,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq, Default)]
 #[serde(crate = "rocket::serde", rename_all = "camelCase")]
 /// Data Type "Assurance" of Spec Version 2
 pub struct Assurance {
+    pub assurance: bool,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub coverage: Option<AssuranceCoverage>,
 
@@ -373,8 +375,12 @@ pub struct Assurance {
     pub boundary: Option<AssuranceBoundary>,
 
     pub provider_name: String,
-    pub completed_at: DateTime<Utc>,
-    pub standard: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<DateTime<Utc>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub standard_name: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comments: Option<String>,
