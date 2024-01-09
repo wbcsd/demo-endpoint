@@ -13,21 +13,25 @@ mod api_types;
 mod auth;
 mod datamodel;
 mod error;
+mod openid_conf;
 mod sample_data;
 
-use std::cmp::min;
-
-use auth::UserToken;
+use auth::{generate_keys, UserToken};
 use chrono::{DateTime, Utc};
 use either::Either;
+use std::cmp::min;
 
+use jsonwebtoken::jwk::{
+    AlgorithmParameters, CommonParameters, Jwk, JwkSet, KeyAlgorithm, PublicKeyUse,
+    RSAKeyParameters,
+};
 use lambda_web::{is_running_on_lambda, launch_rocket_on_lambda, LambdaError};
 use okapi::openapi3::{Object, Parameter, ParameterValue};
-use rocket::catch;
 use rocket::form::Form;
 use rocket::request::FromRequest;
 
 use rocket::serde::json::Json;
+use rocket::State;
 use rocket_okapi::rapidoc::{
     make_rapidoc, GeneralConfig, HideShowConfig, RapiDocConfig, Theme, UiConfig,
 };
@@ -38,11 +42,15 @@ use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};
 
 use api_types::*;
 use datamodel::{PfId, ProductFootprint};
+use openid_conf::OpenIdConfiguration;
+use rsa::traits::PublicKeyParts;
 use sample_data::PCF_DEMO_DATA;
 use Either::Left;
 
 #[cfg(test)]
 use rocket::local::blocking::Client;
+
+use crate::auth::KeyPair;
 
 // minimum number of results to return from Action `ListFootprints`
 const ACTION_LIST_FOOTPRINTS_MIN_RESULTS: usize = 10;
@@ -50,14 +58,61 @@ const ACTION_LIST_FOOTPRINTS_MIN_RESULTS: usize = 10;
 const AUTH_USERNAME: &str = "hello";
 const AUTH_PASSWORD: &str = "pathfinder";
 
+const API_URL: &str = "https://api.pathfinder.sine.dev";
+
+/// endpoint to retrieve the OpenId configuration document with the token_endpoint
+#[get("/2/.well-known/openid-configuration")]
+fn openid_configuration() -> Json<OpenIdConfiguration> {
+    let openid_conf = OpenIdConfiguration {
+        token_endpoint: format!("{API_URL}/2/auth/token"),
+        issuer: url::Url::parse(API_URL).unwrap(),
+        authorization_endpoint: format!("{API_URL}/2/auth/token"),
+        jwks_uri: format!("{API_URL}/2/jwks"),
+        response_types_supported: vec![format!("token")],
+        subject_types_supported: vec![format!("public")],
+        id_token_signing_alg_values_supported: vec![format!("RS256")],
+    };
+    Json(openid_conf)
+}
+
+/// endpoint to retrieve the Json Web Key Set to verify the token's signature
+#[get("/2/jwks")]
+fn jwks(state: &State<KeyPair>) -> Json<JwkSet> {
+    let pub_key = &state.pub_key;
+
+    let jwks = JwkSet {
+        keys: vec![Jwk {
+            common: CommonParameters {
+                public_key_use: Some(PublicKeyUse::Signature),
+                key_operations: None,
+                key_algorithm: Some(KeyAlgorithm::RS256),
+                key_id: Some("Public key".to_string()),
+                x509_url: None,
+                x509_chain: None,
+                x509_sha1_fingerprint: None,
+                x509_sha256_fingerprint: None,
+            },
+            algorithm: AlgorithmParameters::RSA(RSAKeyParameters {
+                key_type: jsonwebtoken::jwk::RSAKeyType::RSA,
+                n: base64::encode_config(pub_key.n().to_bytes_be(), base64::URL_SAFE_NO_PAD),
+                e: base64::encode_config(pub_key.e().to_bytes_be(), base64::URL_SAFE_NO_PAD),
+            }),
+        }],
+    };
+
+    Json(jwks)
+}
+
 /// endpoint to create an oauth2 client credentials grant (RFC 6749 4.4)
 #[post("/token", data = "<body>")]
 fn oauth2_create_token(
     req: auth::OAuth2ClientCredentials,
     body: Form<auth::OAuth2ClientCredentialsBody<'_>>,
+    state: &State<KeyPair>,
 ) -> Either<Json<auth::OAuth2TokenReply>, error::OAuth2ErrorMessage> {
     if req.id == AUTH_USERNAME && req.secret == AUTH_PASSWORD {
-        let access_token = auth::encode_token(&auth::UserToken { username: req.id }).unwrap();
+        let access_token =
+            auth::encode_token(&auth::UserToken { username: req.id }, state).unwrap();
 
         let reply = auth::OAuth2TokenReply {
             access_token,
@@ -396,7 +451,7 @@ fn default_handler() -> error::AccessDenied {
 
 const OPENAPI_PATH: &str = "../openapi.json";
 
-fn create_server() -> rocket::Rocket<rocket::Build> {
+fn create_server(key_pair: KeyPair) -> rocket::Rocket<rocket::Build> {
     let settings = OpenApiSettings::default();
     let (mut openapi_routes, openapi_spec) =
         openapi_get_routes_spec![settings: get_pcf, get_footprints, post_event];
@@ -406,6 +461,7 @@ fn create_server() -> rocket::Rocket<rocket::Build> {
     rocket::build()
         .mount("/", openapi_routes)
         .mount("/", routes![get_list, get_pcf_unauth, post_event_fallback])
+        .mount("/", routes![openid_configuration, jwks])
         .mount("/2/auth", routes![oauth2_create_token])
         .mount(
             "/swagger-ui/",
@@ -433,12 +489,13 @@ fn create_server() -> rocket::Rocket<rocket::Build> {
                 ..Default::default()
             }),
         )
+        .manage(key_pair)
         .register("/", catchers![bad_request, default_handler])
 }
 
 #[rocket::main]
 async fn main() -> Result<(), LambdaError> {
-    let rocket = create_server();
+    let rocket = create_server(generate_keys());
     if is_running_on_lambda() {
         // Launch on AWS Lambda
         launch_rocket_on_lambda(rocket).await?;
@@ -452,6 +509,11 @@ async fn main() -> Result<(), LambdaError> {
 #[cfg(test)]
 const EXAMPLE_HOST: &str = "api.pathfinder.sine.dev";
 
+#[cfg(test)]
+lazy_static! {
+    static ref TEST_KEYPAIR: KeyPair = generate_keys();
+}
+
 // tests the /v2/auth/token endpoint
 #[test]
 fn post_auth_action_test() {
@@ -459,7 +521,7 @@ fn post_auth_action_test() {
 
     let auth_uri = "/2/auth/token";
 
-    let client = &Client::tracked(create_server()).unwrap();
+    let client = &Client::tracked(create_server(TEST_KEYPAIR.clone())).unwrap();
 
     // invalid credentials
     {
@@ -520,13 +582,53 @@ fn post_auth_action_test() {
 }
 
 #[test]
-fn get_list_test() {
+fn verify_token_signature_test() {
+    use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+    use std::collections::HashSet;
+
+    let client = &Client::tracked(create_server(TEST_KEYPAIR.clone())).unwrap();
+
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token).ok().unwrap();
+
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
+
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
+
+    let response = client.get("/2/jwks").dispatch();
+
+    let jwks: JwkSet = response.into_json().unwrap();
+
+    let jwk = jwks.keys.first().unwrap();
+
+    let decoding_key = DecodingKey::from_jwk(jwk).unwrap();
+
+    let mut v = Validation::new(Algorithm::RS256);
+    v.validate_exp = false;
+    v.required_spec_claims = HashSet::from(["username".to_string()]);
+
+    assert_eq!(
+        token.username,
+        decode::<auth::UserToken>(&jwt, &decoding_key, &v)
+            .unwrap()
+            .claims
+            .username
+    );
+}
+
+#[test]
+fn get_list_test() {
+    let client = &Client::tracked(create_server(TEST_KEYPAIR.clone())).unwrap();
+
+    let token = UserToken {
+        username: "hello".to_string(),
+    };
+
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
+
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
-    let client = &Client::tracked(create_server()).unwrap();
 
     let get_list_uri = "/2/footprints";
 
@@ -559,12 +661,16 @@ fn get_list_test() {
 
 #[test]
 fn get_list_with_filter_eq_test() {
+    let client = &Client::tracked(create_server(TEST_KEYPAIR.clone())).unwrap();
+
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token).ok().unwrap();
+
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
+
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
-    let client = &Client::tracked(create_server()).unwrap();
 
     let get_list_with_limit_uri = "/2/footprints?$filter=pcf/geographyCountry+eq+'FR'";
 
@@ -581,12 +687,17 @@ fn get_list_with_filter_eq_test() {
 
 #[test]
 fn get_list_with_filter_lt_test() {
+    let client = &Client::tracked(create_server(TEST_KEYPAIR.clone())).unwrap();
+
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token).ok().unwrap();
+
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
+
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
+
     let bearer_token = format!("Bearer {jwt}");
-    let client = &Client::tracked(create_server()).unwrap();
 
     let get_list_with_limit_uri = "/2/footprints?$filter=updated+lt+'2023-01-01T00:00:00.000Z'";
 
@@ -603,12 +714,16 @@ fn get_list_with_filter_lt_test() {
 
 #[test]
 fn get_list_with_filter_eq_and_lt_test() {
+    let client = &Client::tracked(create_server(TEST_KEYPAIR.clone())).unwrap();
+
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token).ok().unwrap();
+
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
+
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
-    let client = &Client::tracked(create_server()).unwrap();
 
     let get_list_with_limit_uri = "/2/footprints?$filter=(pcf/geographyCountry+eq+'FR')+and+(updated+lt+'2023-01-01T00:00:00.000Z')";
 
@@ -625,12 +740,16 @@ fn get_list_with_filter_eq_and_lt_test() {
 
 #[test]
 fn get_list_with_filter_any_test() {
+    let client = &Client::tracked(create_server(TEST_KEYPAIR.clone())).unwrap();
+
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token).ok().unwrap();
+
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
+
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
-    let client = &Client::tracked(create_server()).unwrap();
 
     let get_list_with_limit_uri =
         "/2/footprints?$filter=productIds/any(productId:(productId+eq+'urn:gtin:4712345060507'))";
@@ -664,12 +783,16 @@ fn get_list_with_filter_any_test() {
 
 #[test]
 fn get_list_with_limit_test() {
+    let client = &Client::tracked(create_server(TEST_KEYPAIR.clone())).unwrap();
+
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token).ok().unwrap();
+
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
+
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
-    let client = &Client::tracked(create_server()).unwrap();
 
     let get_list_with_limit_uri = "/2/footprints?limit=3";
     let expected_next_link1 = "/2/footprints?offset=3&limit=3";
@@ -731,12 +854,16 @@ fn get_list_with_limit_test() {
 
 #[test]
 fn post_events_test() {
+    let client = &Client::tracked(create_server(TEST_KEYPAIR.clone())).unwrap();
+
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token).ok().unwrap();
+
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
+
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
-    let client = &Client::tracked(create_server()).unwrap();
 
     let post_events_uri = "/2/events";
 
@@ -789,12 +916,16 @@ fn post_events_test() {
 
 #[test]
 fn get_pcf_test() {
+    let client = &Client::tracked(create_server(TEST_KEYPAIR.clone())).unwrap();
+
     let token = UserToken {
         username: "hello".to_string(),
     };
-    let jwt = auth::encode_token(&token).ok().unwrap();
+
+    let key_pair = client.rocket().state::<KeyPair>().unwrap();
+
+    let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
-    let client = &Client::tracked(create_server()).unwrap();
 
     // test auth
     for pf in PCF_DEMO_DATA.iter() {
