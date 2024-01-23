@@ -9,6 +9,7 @@
 //!
 //! See https://www.carbon-transparency.com for further details.
 use chrono::{DateTime, Utc};
+use rocket::serde::json::Json;
 use rocket::serde::{Deserialize, Serialize};
 use rust_decimal::Decimal;
 use schemars::schema::{ArrayValidation, NumberValidation, Schema, StringValidation};
@@ -93,7 +94,8 @@ pub struct CarbonFootprint {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub secondary_emission_factor_sources: Option<EmissionFactorDSSet>,
 
-    pub exempted_emissions_percent: PositiveDecimal,
+    pub exempted_emissions_percent: ExemptedEmissionsPercent,
+
     pub exempted_emissions_description: String,
 
     pub packaging_emissions_included: bool,
@@ -179,6 +181,11 @@ pub enum CharacterizationFactors {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct PositiveDecimal(Decimal);
+
+/// a f64 in the 0..5 range
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
+pub struct ExemptedEmissionsPercent(pub f64);
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "rocket::serde", rename_all = "camelCase")]
@@ -435,6 +442,12 @@ impl From<Decimal> for StrictlyPositiveDecimal {
     }
 }
 
+impl From<f64> for ExemptedEmissionsPercent {
+    fn from(f: f64) -> ExemptedEmissionsPercent {
+        ExemptedEmissionsPercent(f)
+    }
+}
+
 impl From<f64> for Percent {
     fn from(f: f64) -> Percent {
         Percent(f)
@@ -598,6 +611,27 @@ impl JsonSchema for StrictlyPositiveDecimal {
                 "^(\\d*[1-9]\\d*([\\.]\\d+)?|\\d+(\\.\\d*[1-9]\\d*)?)$",
             )),
             ..Default::default()
+        }));
+
+        Schema::Object(s)
+    }
+}
+
+impl JsonSchema for ExemptedEmissionsPercent {
+    fn schema_name() -> String {
+        "ExemptedEmissionsPercent".into()
+    }
+
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        let mut s = match f64::json_schema(gen) {
+            Schema::Object(s) => s,
+            Schema::Bool(_) => panic!("Unexpected base schema"),
+        };
+
+        s.number = Some(Box::new(NumberValidation {
+            minimum: Some(0.00),
+            maximum: Some(5.0),
+            ..(NumberValidation::default())
         }));
 
         Schema::Object(s)

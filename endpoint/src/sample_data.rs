@@ -54,7 +54,7 @@ lazy_static! {
         biogenic_carbon_withdrawal: None,
         characterization_factors: CharacterizationFactors::Ar5,
         dqi: None,
-        exempted_emissions_percent: dec!(0.0).into(),
+        exempted_emissions_percent: ExemptedEmissionsPercent(0.0),
         exempted_emissions_description: "".to_string(),
         fossil_carbon_content: dec!(0.0).into(),
         packaging_emissions_included: false,
