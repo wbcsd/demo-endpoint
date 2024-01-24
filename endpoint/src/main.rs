@@ -16,7 +16,7 @@ mod error;
 mod openid_conf;
 mod sample_data;
 
-use auth::{generate_keys, UserToken};
+use auth::{load_keys, UserToken};
 use chrono::{DateTime, Utc};
 use either::Either;
 use std::cmp::min;
@@ -495,7 +495,7 @@ fn create_server(key_pair: KeyPair) -> rocket::Rocket<rocket::Build> {
 
 #[rocket::main]
 async fn main() -> Result<(), LambdaError> {
-    let rocket = create_server(generate_keys());
+    let rocket = create_server(load_keys());
     if is_running_on_lambda() {
         // Launch on AWS Lambda
         launch_rocket_on_lambda(rocket).await?;
@@ -511,7 +511,7 @@ const EXAMPLE_HOST: &str = "api.pathfinder.sine.dev";
 
 #[cfg(test)]
 lazy_static! {
-    static ref TEST_KEYPAIR: KeyPair = generate_keys();
+    static ref TEST_KEYPAIR: KeyPair = load_keys();
 }
 
 // tests the /v2/auth/token endpoint

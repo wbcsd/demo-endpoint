@@ -8,7 +8,7 @@
 #![allow(renamed_and_removed_lints)]
 
 use std::collections::HashSet;
-use std::ops::Deref;
+use std::env;
 
 use jsonwebtoken::errors::Result;
 use jsonwebtoken::{Algorithm, TokenData};
@@ -29,11 +29,9 @@ use rocket_okapi::{
     gen::OpenApiGenerator,
     request::{OpenApiFromRequest, RequestHeaderInput},
 };
-use rsa::pkcs8::EncodePrivateKey;
+use rsa::pkcs8::DecodePrivateKey;
 use rsa::pkcs8::EncodePublicKey;
 use rsa::{pkcs8::LineEnding, RsaPrivateKey, RsaPublicKey};
-
-const KEY_BITS: usize = 2048;
 
 #[derive(Clone)]
 pub struct KeyPair {
@@ -155,20 +153,16 @@ impl<'r> FromRequest<'r> for UserToken {
     }
 }
 
-pub fn generate_keys() -> KeyPair {
-    let mut rng = rand::thread_rng();
+pub fn load_keys() -> KeyPair {
+    let priv_key = env::var("PRIV_KEY").expect("PRIV_KEY must be set");
 
-    let private_key = RsaPrivateKey::new(&mut rng, KEY_BITS).expect("failed to generate a key");
+    let private_key = RsaPrivateKey::from_pkcs8_pem(&priv_key)
+        .unwrap_or_else(|err| panic!("Could not deserialize private key: {}", err));
     let public_key = RsaPublicKey::from(&private_key);
 
-    let priv_key = private_key
-        .to_pkcs8_pem(LineEnding::default())
-        .expect("could not serialize private key")
-        .deref()
-        .clone();
     let pub_key = public_key
         .to_public_key_pem(LineEnding::default())
-        .expect("could not serialize public key");
+        .unwrap_or_else(|err| panic!("Could not serialize public key: {}", err));
 
     let dec_key = DecodingKey::from_rsa_pem(pub_key.as_bytes()).unwrap();
     let enc_key = EncodingKey::from_rsa_pem(priv_key.as_bytes()).unwrap();
