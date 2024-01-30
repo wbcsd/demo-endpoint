@@ -54,14 +54,24 @@ cargo build
 
 ## Running locally
 
+You first need to create a private key:
+
 ```sh
-cargo run 
+scripts/keygen.sh
+```
+
+Which will create the file `keypair.pem` for you. 
+
+Then, you can run the server like this:
+
+```sh
+PRIV_KEY=`cat keypair.pem` cargo run
 ```
 
 To run it at a different port, e.g. 3333:
 
 ```sh
-ROCKET_PORT=3333 cargo run 
+ROCKET_PORT=3333 PRIV_KEY=`cat keypair.pem` cargo run 
 ```
 
 ## Running the server in a "Production" mode
@@ -72,6 +82,7 @@ cargo build --release
 
 ## running
 export ROCKET_SECRET_KEY=$(openssl rand -base64 32)
+export PRIV_KEY="..."
 cargo run --release
 ```
 

@@ -22,6 +22,8 @@ jobs:
             ~/.rustup
           key: ${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}
       - name: CI
+        env:
+          PRIV_KEY: ${{ secrets.PRIV_KEY }}
         working-directory: ./endpoint
         run: |
           cargo build
