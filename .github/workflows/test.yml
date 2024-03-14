@@ -28,4 +28,4 @@ jobs:
         run: |
           cargo build
           cargo test
-          cargo clippy -- -Dwarnings
+          cargo clippy -- -Dwarnings --allow clippy::blocks_in_conditions
