@@ -6,6 +6,7 @@
  */
 
 #![allow(renamed_and_removed_lints)]
+#![allow(clippy::blocks_in_conditions)]
 
 use std::collections::HashSet;
 use std::env;
