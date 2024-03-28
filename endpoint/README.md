@@ -1,13 +1,13 @@
-# Endpoint implementation of Technical Specifications for PCF Data Exchange (Version 2.0.0)
+# Endpoint implementation of Technical Specifications for PCF Data Exchange (Version 2.1.0)
 
 A yet incomplete beta-quality implementation of the HTTP REST API of the [Technical Specifications for PCF Data Exchange](https://wbcsd.github.io/tr/2023/data-exchange-protocol-20230221/)
 
 ## Status
 
-⚠️⚠️⚠️⚠️⚠️  
+⚠️⚠️⚠️⚠️⚠️
 **This is **not** a "reference implementation" but a demonstrator used to generate OpenAPI spec files for documenting the Spec's REST API. A thorough review WRT specification compliance is still pending.**
 
-**This means, you should not yet rely on this implementation for conducting conformance testing, yet.**  
+**This means, you should not yet rely on this implementation for conducting conformance testing, yet.**
 ⚠️⚠️⚠️⚠️⚠️
 
 For details on the backlog, please see [BACKLOG.md](BACKLOG.md).
@@ -22,8 +22,12 @@ The following endpoints are available:
   - `/2/events` implementing the `Events` action
   - `/2/auth/token` implementing `Authenticate` action
 - Additional endpoints are:
+  - `/2/.well-known/openid-configuration`: OpenId provider configuration document
+  - `/2/jwks`: the JSON Web Key Set used to encode and sign the authentication token
   - `/openapi.json`: OpenAPI description file which is automatically generated from the types defined in [`api_types.rs`](src/api_types.rs) and endpoints defined in [`main.rs`](src/main.rs)
-  - Swagger UI: `/swagger-ui/` if you fancy a visualization 
+  - Swagger UI: `/swagger-ui/` if you fancy a visualization
+
+No further endpoints are supported by this implementation and all return `{"message":"Access Denied", "code":"AccessDenied"}`.
 
 ## Credentials
 
@@ -60,7 +64,7 @@ You first need to create a private key:
 scripts/keygen.sh
 ```
 
-Which will create the file `keypair.pem` for you. 
+Which will create the file `keypair.pem` for you.
 
 Then, you can run the server like this:
 
@@ -71,7 +75,7 @@ PRIV_KEY=`cat keypair.pem` cargo run
 To run it at a different port, e.g. 3333:
 
 ```sh
-ROCKET_PORT=3333 PRIV_KEY=`cat keypair.pem` cargo run 
+ROCKET_PORT=3333 PRIV_KEY=`cat keypair.pem` cargo run
 ```
 
 ## Running the server in a "Production" mode
