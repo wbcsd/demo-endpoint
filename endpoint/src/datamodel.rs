@@ -507,7 +507,7 @@ impl From<String> for SpecVersionString {
 
 impl JsonSchema for IpccCharacterizationFactorsSource {
     fn schema_name() -> String {
-        String::new()
+        "IpccCharacterizationFactorsSource".into()
     }
 
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> Schema {
