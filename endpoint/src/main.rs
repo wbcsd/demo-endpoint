@@ -439,6 +439,11 @@ fn post_event_fallback() -> EventsApiResponse {
     EventsApiResponse::NoAuth(error::AccessDenied::default())
 }
 
+#[get("/")]
+fn index() -> rocket::response::Redirect {
+    rocket::response::Redirect::to("/swagger-ui/")
+}
+
 #[catch(400)]
 fn bad_request() -> error::BadRequest {
     Default::default()
@@ -460,6 +465,7 @@ fn create_server(key_pair: KeyPair) -> rocket::Rocket<rocket::Build> {
 
     rocket::build()
         .mount("/", openapi_routes)
+        .mount("/", routes![index])
         .mount("/", routes![get_list, get_pcf_unauth, post_event_fallback])
         .mount("/", routes![openid_configuration, jwks])
         .mount("/2/auth", routes![oauth2_create_token])
