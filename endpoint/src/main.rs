@@ -32,11 +32,8 @@ use rocket::request::FromRequest;
 
 use rocket::serde::json::Json;
 use rocket::State;
-use rocket_okapi::rapidoc::{
-    make_rapidoc, GeneralConfig, HideShowConfig, RapiDocConfig, Theme, UiConfig,
-};
 use rocket_okapi::request::{OpenApiFromRequest, RequestHeaderInput};
-use rocket_okapi::settings::{OpenApiSettings, UrlObject};
+use rocket_okapi::settings::OpenApiSettings;
 use rocket_okapi::swagger_ui::{make_swagger_ui, SwaggerUIConfig};
 use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};
 
@@ -467,25 +464,6 @@ fn create_server(key_pair: KeyPair) -> rocket::Rocket<rocket::Build> {
             "/swagger-ui/",
             make_swagger_ui(&SwaggerUIConfig {
                 url: OPENAPI_PATH.to_owned(),
-                ..Default::default()
-            }),
-        )
-        .mount(
-            "/rapidoc/",
-            make_rapidoc(&RapiDocConfig {
-                general: GeneralConfig {
-                    spec_urls: vec![UrlObject::new("General", OPENAPI_PATH)],
-                    ..Default::default()
-                },
-                ui: UiConfig {
-                    theme: Theme::Dark,
-                    ..Default::default()
-                },
-                hide_show: HideShowConfig {
-                    allow_spec_url_load: false,
-                    allow_spec_file_load: false,
-                    ..Default::default()
-                },
                 ..Default::default()
             }),
         )
