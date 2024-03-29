@@ -1031,7 +1031,7 @@ dependencies = [
 
 [[package]]
 name = "pathfinder-endpoint"
-version = "2.2.0-wip"
+version = "2.2.0-wip1"
 dependencies = [
  "base64 0.13.0",
  "chrono",
