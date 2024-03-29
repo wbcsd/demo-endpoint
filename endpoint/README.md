@@ -1,6 +1,6 @@
 # Endpoint implementation of Technical Specifications for PCF Data Exchange (Version 2.2.0)
 
-A yet incomplete beta-quality implementation of the HTTP REST API of the [Technical Specifications for PCF Data Exchange](https://wbcsd.github.io/tr/2023/data-exchange-protocol-20230221/)
+A yet incomplete beta-quality implementation of the HTTP REST API of the [PACT Tech Specs Version 2.2.0-20240327](https://wbcsd.github.io/tr/2024/data-exchange-protocol-20240327/)
 
 ## Status
 
