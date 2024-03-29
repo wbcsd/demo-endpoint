@@ -90,18 +90,18 @@ impl<'r> FromRequest<'r> for OAuth2ClientCredentials {
         if let Some(auth_header) = req.headers().get_one("Authorization") {
             let split = auth_header.split_whitespace().collect::<Vec<_>>();
             if split.len() != 2 {
-                return Outcome::Failure((Status::BadRequest, ()));
+                return Outcome::Error((Status::BadRequest, ()));
             }
             let (basic, payload) = (split[0], split[1]);
             if basic != "Basic" {
-                return Outcome::Failure((Status::Unauthorized, ()));
+                return Outcome::Error((Status::Unauthorized, ()));
             }
             if let Some(credentials) = decode_basic_auth(payload) {
                 return Outcome::Success(credentials);
             }
         }
 
-        Outcome::Failure((Status::BadRequest, ()))
+        Outcome::Error((Status::BadRequest, ()))
     }
 }
 
@@ -141,12 +141,12 @@ impl<'r> FromRequest<'r> for UserToken {
                 }
             }
 
-            Outcome::Failure((
+            Outcome::Error((
                 Status::BadRequest,
                 status::Custom(Status::BadRequest, UserTokenError::Invalid),
             ))
         } else {
-            Outcome::Failure((
+            Outcome::Error((
                 Status::Unauthorized,
                 status::Custom(Status::Unauthorized, UserTokenError::Missing),
             ))
