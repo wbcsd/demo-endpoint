@@ -25,10 +25,10 @@ use jsonwebtoken::jwk::{
     AlgorithmParameters, CommonParameters, Jwk, JwkSet, KeyAlgorithm, PublicKeyUse,
     RSAKeyParameters,
 };
-use lambda_web::{is_running_on_lambda, launch_rocket_on_lambda, LambdaError};
 use okapi::openapi3::{Object, Parameter, ParameterValue};
 use rocket::form::Form;
 use rocket::request::FromRequest;
+use rocket::Error as RocketError;
 
 use rocket::serde::json::Json;
 use rocket::State;
@@ -494,15 +494,9 @@ fn create_server(key_pair: KeyPair) -> rocket::Rocket<rocket::Build> {
 }
 
 #[rocket::main]
-async fn main() -> Result<(), LambdaError> {
+async fn main() -> Result<(), RocketError> {
     let rocket = create_server(load_keys());
-    if is_running_on_lambda() {
-        // Launch on AWS Lambda
-        launch_rocket_on_lambda(rocket).await?;
-    } else {
-        // Launch local server
-        let _ = rocket.launch().await?;
-    }
+    let _ = rocket.launch().await?;
     Ok(())
 }
 
