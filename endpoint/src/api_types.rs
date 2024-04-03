@@ -51,8 +51,8 @@ pub(crate) struct PfListingResponseInner {
 pub(crate) enum EventsApiResponse {
     #[response(status = 200)]
     Ok(()),
-    #[response(status = 403, content_type = "application/json")]
-    NoAuth(crate::error::AccessDenied),
+    #[response(status = 400, content_type = "application/json")]
+    NoAuth(crate::error::BadRequest),
     #[response(status = 501, content_type = "application/json")]
     NotImpl(crate::error::NotImplemented),
     #[response(status = 400, content_type = "application/json")]
