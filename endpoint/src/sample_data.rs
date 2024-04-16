@@ -9,150 +9,251 @@ use chrono::prelude::*;
 use rust_decimal_macros::dec;
 use uuid::uuid;
 
-lazy_static! {
-    static ref TIME_PERIOD_START: DateTime<Utc> = Utc.ymd(2021, 1, 1).and_hms(0, 0, 0);
-    static ref TIME_PERIOD_END: DateTime<Utc> = Utc.ymd(2022, 1, 1).and_hms(0, 0, 0);
-    static ref CREATED_AT: DateTime<Utc> = Utc.ymd(2022, 5, 22).and_hms(21, 47, 32);
-    static ref UPDATED_AT: DateTime<Utc> = Utc.ymd(2022, 5, 22).and_hms(21, 47, 35);
-    static ref PCF: CarbonFootprint = CarbonFootprint {
-        cross_sectoral_standards_used: CrossSectoralStandardSet(vec![CrossSectoralStandard::Ghgp]),
-        fossil_ghg_emissions: dec!(0.123).into(),
-        primary_data_share: Some(56.12.into()),
-        boundary_processes_description: Some(String::from("End-of-life included")),
-        secondary_emission_factor_sources: Some(EmissionFactorDSSet(vec![EmissionFactorDS {
-            name: String::from("Ecoinvent").into(),
-            version: String::from("1.2.3").into(),
-        }])),
-        reference_period_start: *TIME_PERIOD_START,
-        reference_period_end: *TIME_PERIOD_END,
-        /*geography_region_or_subregion: None,
-        geography_country: Some(ISO3166CC(String::from("FR"))),
-        geography_country_subdivision: None, */
-        geographic_scope: Some(GeographicScope::Country { geography_country: ISO3166CC(String::from("FR")) }),
-        i_luc_ghg_emissions: None,
-        d_luc_ghg_emissions: None,
-        land_management_ghg_emissions: Some(dec!(0.001).into()),
-        other_biogenic_ghg_emissions: Some(dec!(0).into()),
-        biogenic_carbon_content: dec!(0.0).into(),
-        product_or_sector_specific_rules: ProductOrSectorSpecificRuleSet(vec![
-            ProductOrSectorSpecificRule {
-                operator: ProductOrSectorSpecificRuleOperator::EPDInternational,
-                rule_names: vec![String::from("ABC 2021").into()].into(),
-                other_operator_name: None,
-            }
-        ]),
-        allocation_rules_description: None,
-        declared_unit: DeclaredUnit::Liter,
-        unitary_product_amount: dec!(12.0).into(),
-        aircraft_ghg_emissions: None,
-        assurance: Some(Assurance {
-            assurance: true,
-            coverage: Some(AssuranceCoverage::ProductLevel),
-            ..Default::default()
-        }),
-        biogenic_accounting_methodology: None,
-        biogenic_carbon_withdrawal: None,
-        characterization_factors: CharacterizationFactors::Ar6,
-        ipcc_characterization_factors_sources: IpccCharacterizationFactorsSources::from(vec![String::from("AR6").into()]),
-        dqi: None,
-        exempted_emissions_percent: ExemptedEmissionsPercent(0.0),
-        exempted_emissions_description: "".to_string(),
-        fossil_carbon_content: dec!(0.0).into(),
-        packaging_emissions_included: false,
-        packaging_ghg_emissions: None,
-        p_cf_excluding_biogenic: dec!(0.0).into(),
-        p_cf_including_biogenic: Some(dec!(0.0).into()),
-        uncertainty_assessment_description: None,
-    };
-}
-
-fn base() -> ProductFootprint {
-    ProductFootprint {
-        spec_version: String::from("2.0.0").into(),
-        id: PfId(uuid!("d9be4477-e351-45b3-acd9-e1da05e6f633")),
-        preceding_pf_ids: Some(vec![PfId(uuid!("c3028ee9-d595-4779-a73a-290bfa7505d6"))].into()),
-        version: VersionInteger(0),
-        created: *CREATED_AT,
+lazy_static!(
+    static ref EXAMPLE_1: ProductFootprint = ProductFootprint {
+        id: PfId(uuid!("91715e5e-fd0b-4d1c-8fab-76290c46e6ed")),
+        spec_version: SpecVersionString::from("2.0.0".to_string()),
+        preceding_pf_ids: Some(NonEmptyPfIdVec::from(vec![PfId(uuid!("d6985fe5-e569-5695-d47d-526dad7525d5")), PfId(uuid!("d6985fe5-e569-5695-d47d-526dad7525d6"))])),
+        version: VersionInteger(1),
+        created: Utc.ymd(2022, 3, 1).and_hms(09, 32, 20),
         updated: None,
         status: PfStatus::Active,
         status_comment: None,
-        validity_period_start: None,
-        validity_period_end: None,
+        validity_period_start: Some(Utc.ymd(2022, 3, 1).and_hms(09, 32, 20)),
+        validity_period_end: Some(Utc.ymd(2024, 12, 31).and_hms(00, 00, 00)),
         company_name: String::from("My Corp").into(),
-        company_ids: CompanyIdSet(vec![
-            String::from("urn:uuid:51131FB5-42A2-4267-A402-0ECFEFAD1619").into(),
-            String::from("urn:epc:id:sgln:4063973.00000.8").into(),
-        ]),
-        product_ids: ProductIdSet(vec![String::from("urn:gtin:4712345060507").into()]),
+        company_ids: CompanyIdSet(vec![Urn::from("urn:uuid:69585GB6-56T9-6958-E526-6FDGZJHU1326".to_string()), Urn::from("urn:epc:id:sgln:562958.00000.4".to_string())]),
+        product_description: "Bio-Ethanol 98%, corn feedstock (bulk - no packaging)".to_string(),
+        product_ids: ProductIdSet(vec![Urn::from("urn:gtin:5695872369587".to_string())]),
+        product_category_cpc: String::from("6398").into(),
         product_name_company: String::from("Green Ethanol").into(),
-        product_category_cpc: String::from("3342").into(),
-        pcf: PCF.clone(),
         comment: "".into(),
-        product_description: "Cote'd Or Ethanol".into(),
-    }
-}
+        pcf: CarbonFootprint {
+            declared_unit: DeclaredUnit::Liter,
+            unitary_product_amount: dec!(1).into(),
+            p_cf_excluding_biogenic: dec!(1.63).into(),
+            p_cf_including_biogenic: Some(dec!(1.85).into()),
+            fossil_ghg_emissions: dec!(1.5).into(),
+            fossil_carbon_content: dec!(0).into(),
+            biogenic_carbon_content: dec!(0.41).into(),
+            d_luc_ghg_emissions: Some(dec!(0.8).into()),
+            land_management_ghg_emissions: Some(dec!(0.6).into()),
+            other_biogenic_ghg_emissions: Some(dec!(0.4).into()),
+            i_luc_ghg_emissions: Some(dec!(0).into()),
+            biogenic_carbon_withdrawal: Some(dec!(-1.5).into()),
+            aircraft_ghg_emissions: Some(dec!(0.2).into()),
+            characterization_factors: CharacterizationFactors::Ar6,
+            ipcc_characterization_factors_sources: IpccCharacterizationFactorsSources::from(vec![String::from("AR6").into()]),
+            cross_sectoral_standards_used: CrossSectoralStandardSet(vec![CrossSectoralStandard::Ghgp, CrossSectoralStandard::ISO14067]),
+            product_or_sector_specific_rules: Some(ProductOrSectorSpecificRuleSet(vec![
+                ProductOrSectorSpecificRule {
+                    operator: ProductOrSectorSpecificRuleOperator::Other,
+                    rule_names: vec![String::from("The Product Carbon Footprint Guideline for the Chemical Industry, v.2.0").into()].into(),
+                    other_operator_name: Some(String::from("Tfs").into())
+                }])),
+            biogenic_accounting_methodology: Some(BiogenicAccountingMethodology::Ghpg),
+            boundary_processes_description: String::from("1) Material acquisition and preprocessing, including growth of corn 2) Production: fuel consumption, electricity consumption, water consumption, process-generated direct emissions 3) Distribution and storage: transportation of the finished product from manufacturing site to storage site"),
+            reference_period_start: Utc.ymd(2021, 1, 1).and_hms(00, 00, 00),
+            reference_period_end: Utc.ymd(2021, 12, 31).and_hms(00, 00, 00),
+            geographic_scope: Some(GeographicScope::Regional { geography_region_or_subregion: UNRegionOrSubregion::WesternEurope }),
+            secondary_emission_factor_sources: Some(EmissionFactorDSSet(vec![EmissionFactorDS {
+                name: String::from("Ecoinvent").into(),
+                version: String::from("3.1").into(),
+            }])),
+            exempted_emissions_percent: ExemptedEmissionsPercent(0.0),
+            exempted_emissions_description: "".to_string(),
+            packaging_emissions_included: false,
+            packaging_ghg_emissions: None,
+            allocation_rules_description: Some("Using mass allocation following the product specific rule as per PACT Framework decision-making tree".to_string()),
+            uncertainty_assessment_description: Some("A model of corn production is involved in predicting emissions from the production of the corn feedstock. Emissions of N2O due to application of nitrogen fertilizers are based on a linear modeling of interactions of the fertilizer with the soil and plant systems. As these interactions are more complicated than the model assumes, there is uncertainty regarding the emissions resulting from this model".to_string()),
+            primary_data_share: Some(Percent::from(12.9)),
+            dqi: Some(DataQualityIndicators {
+                coverage_percent: Percent::from(78.0),
+                technological_d_q_r: dec!(1.6).into(),
+                temporal_d_q_r: dec!(2.6).into(),
+                geographical_d_q_r: dec!(1.8).into(),
+                completeness_d_q_r: dec!(1.7).into(),
+                reliability_d_q_r: dec!(2.1).into()
+            }),
+            assurance: Some(Assurance {
+                assurance:false,
+                coverage: None,
+                level: None,
+                boundary: None,
+                provider_name: "".to_string(),
+                completed_at: None,
+                standard_name: None,
+                comments: None
+            }),
+        }
+    };
+    static ref EXAMPLE_2: ProductFootprint = ProductFootprint {
+        id: PfId(uuid!("61ff98c0-9e13-47d9-bb13-0b5381468165")),
+        spec_version: SpecVersionString::from("2.0.0".to_string()),
+        preceding_pf_ids: Some(NonEmptyPfIdVec::from(vec![PfId(uuid!("c3028ee9-d595-4779-a73a-290bfa7505d6")), PfId(uuid!("c3028ee9-d595-4779-a73a-290bfa7505d7"))])),
+        version: VersionInteger(1),
+        created: Utc.ymd(2022, 2, 22).and_hms(10, 47, 32),
+        updated: None,
+        status: PfStatus::Active,
+        status_comment: None,
+        validity_period_start: Some(Utc.ymd(2022, 2, 22).and_hms(10, 47, 32)),
+        validity_period_end: Some(Utc.ymd(2024, 12, 31).and_hms(00, 00, 00)),
+        company_name: String::from("My Corp").into(),
+        company_ids: CompanyIdSet(vec![Urn::from("urn:uuid:51131FB5-42A2-4267-A402-0ECFEFAD1619".to_string()), Urn::from("urn:epc:id:sgln:4063973.00000.8".to_string())]),
+        product_description: "12L Bottle of bio-Ethanol 98%, corn feedstock (including 100% fossil plastic packaging)".to_string(),
+        product_ids: ProductIdSet(vec![Urn::from("urn:gtin:4712345060507".to_string())]),
+        product_category_cpc: String::from("3342").into(),
+        product_name_company: String::from("Green Ethanol").into(),
+        comment: "".into(),
+        pcf: CarbonFootprint {
+            declared_unit: DeclaredUnit::Liter,
+            unitary_product_amount: dec!(12).into(),
+            p_cf_excluding_biogenic: dec!(1.75).into(),
+            p_cf_including_biogenic: Some(dec!(1.97).into()),
+            fossil_ghg_emissions: dec!(1.5).into(),
+            fossil_carbon_content: dec!(0).into(),
+            biogenic_carbon_content: dec!(0.41).into(),
+            d_luc_ghg_emissions: Some(dec!(0.8).into()),
+            land_management_ghg_emissions: Some(dec!(0.6).into()),
+            other_biogenic_ghg_emissions: Some(dec!(0.4).into()),
+            i_luc_ghg_emissions: Some(dec!(0).into()),
+            biogenic_carbon_withdrawal: Some(dec!(-1.5).into()),
+            aircraft_ghg_emissions: Some(dec!(0.2).into()),
+            characterization_factors: CharacterizationFactors::Ar6,
+            ipcc_characterization_factors_sources: IpccCharacterizationFactorsSources::from(vec![String::from("AR6").into()]),
+            cross_sectoral_standards_used: CrossSectoralStandardSet(vec![CrossSectoralStandard::Ghgp, CrossSectoralStandard::ISO14067]),
+            product_or_sector_specific_rules: Some(ProductOrSectorSpecificRuleSet(vec![
+                ProductOrSectorSpecificRule {
+                    operator: ProductOrSectorSpecificRuleOperator::Other,
+                    rule_names: vec![String::from("The Product Carbon Footprint Guideline for the Chemical Industry, v.2.0").into()].into(),
+                    other_operator_name: Some(String::from("Tfs").into())
+                }])),
+            biogenic_accounting_methodology: Some(BiogenicAccountingMethodology::Ghpg),
+            boundary_processes_description: String::from("1) Material acquisition and preprocessing, including growth of corn 2) Production: fuel consumption, electricity consumption, water consumption, process-generated direct emissions 3) Distribution and storage: transportation of the finished product from manufacturing site to storage site"),
+            reference_period_start: Utc.ymd(2021, 1, 1).and_hms(00, 00, 00),
+            reference_period_end: Utc.ymd(2021, 12, 31).and_hms(00, 00, 00),
+            geographic_scope: Some(GeographicScope::Country { geography_country: ISO3166CC(String::from("DE")) }),
+            secondary_emission_factor_sources: Some(EmissionFactorDSSet(vec![EmissionFactorDS {
+                name: String::from("Ecoinvent").into(),
+                version: String::from("3.1").into(),
+            }])),
+            exempted_emissions_percent: ExemptedEmissionsPercent(0.8),
+            exempted_emissions_description: "Using the most conservative emission factor from a region with higher energy intensive grid for input A resulted in a contribution of 0.8% for this input. This is less than 1% and therefore considered under the cut off rule".to_string(),
+            packaging_emissions_included: true,
+            packaging_ghg_emissions: Some(dec!(0.12).into()),
+            allocation_rules_description: Some("Using mass allocation following the product specific rule as per PACT Framework decision-making tree".to_string()),
+            uncertainty_assessment_description: None,
+            primary_data_share: Some(Percent::from(16.8)),
+            dqi: Some(DataQualityIndicators {
+                coverage_percent: Percent::from(87.0),
+                technological_d_q_r: dec!(2.3).into(),
+                temporal_d_q_r: dec!(1.4).into(),
+                geographical_d_q_r: dec!(2.5).into(),
+                completeness_d_q_r: dec!(1.1).into(),
+                reliability_d_q_r: dec!(1.6).into()
+            }),
+            assurance: Some(Assurance {
+                assurance:false,
+                coverage: None,
+                level: None,
+                boundary: None,
+                provider_name: "".to_string(),
+                completed_at: None,
+                standard_name: None,
+                comments: None
+            }),
+        }
+    };
+    static ref EXAMPLE_3: ProductFootprint = ProductFootprint {
+        id: PfId(uuid!("f369091a-aa5d-4248-9bd5-2812329e1ef1")),
+        spec_version: SpecVersionString::from("2.0.0".to_string()),
+        preceding_pf_ids: Some(NonEmptyPfIdVec::from(vec![PfId(uuid!("f6985fe5-e569-5695-d47d-526dad7525f5")), PfId(uuid!("f6985fe5-e569-5695-d47d-526dad7525f6"))])),
+        version: VersionInteger(2),
+        created: Utc.ymd(2022, 3, 15).and_hms(11, 47, 32),
+        updated: Some(Utc.ymd(2023, 6, 27).and_hms(12, 12, 03)),
+        status: PfStatus::Active,
+        status_comment: None,
+        validity_period_start: Some(Utc.ymd(2023, 2, 01).and_hms(00, 00, 00)),
+        validity_period_end: Some(Utc.ymd(2025, 08, 31).and_hms(00, 00, 00)),
+        company_name: String::from("My Corp").into(),
+        company_ids: CompanyIdSet(vec![Urn::from("urn:uuid:25639HN5-58Q6-1238-S596-9STHZHZJ5623".to_string()), Urn::from("urn:epc:id:sgln:6957976.00000.1".to_string())]),
+        product_description: "Cardboard box 50x40x40 cm".to_string(),
+        product_ids: ProductIdSet(vec![Urn::from("urn:gtin:5268596541023".to_string())]),
+        product_category_cpc: String::from("4365").into(),
+        product_name_company: String::from("Cardboard504040").into(),
+        comment: "".into(),
+        pcf: CarbonFootprint {
+            declared_unit: DeclaredUnit::Kilogram,
+            unitary_product_amount: dec!(0.8).into(),
+            p_cf_excluding_biogenic: dec!(0.32).into(),
+            p_cf_including_biogenic: Some(dec!(-0.28).into()),
+            fossil_ghg_emissions: dec!(0.23).into(),
+            fossil_carbon_content: dec!(0.08).into(),
+            biogenic_carbon_content: dec!(0.44).into(),
+            d_luc_ghg_emissions: Some(dec!(0.42).into()),
+            land_management_ghg_emissions: Some(dec!(0.34).into()),
+            other_biogenic_ghg_emissions: Some(dec!(0.2).into()),
+            i_luc_ghg_emissions: Some(dec!(0.03).into()),
+            biogenic_carbon_withdrawal: Some(dec!(-1.6).into()),
+            aircraft_ghg_emissions: Some(dec!(0.08).into()),
+            characterization_factors: CharacterizationFactors::Ar5,
+            ipcc_characterization_factors_sources: IpccCharacterizationFactorsSources::from(vec![String::from("AR5").into(), String::from("AR6").into()]),
+            cross_sectoral_standards_used: CrossSectoralStandardSet(vec![CrossSectoralStandard::Ghgp]),
+            product_or_sector_specific_rules: Some(ProductOrSectorSpecificRuleSet(vec![
+                ProductOrSectorSpecificRule {
+                    operator: ProductOrSectorSpecificRuleOperator::EPDInternational,
+                    rule_names: vec![String::from("PCR cardboard").into()].into(),
+                    other_operator_name: None
+                }
+            ])),
+            biogenic_accounting_methodology: Some(BiogenicAccountingMethodology::Pef),
+            boundary_processes_description: String::from("1) Material acquisition and preprocessing, including growth of trees 2) Production: fuel consumption, electricity consumption, water consumption, process-generated direct emissions 3) Distribution and storage: transportation of the finished product from manufacturing site to storage site"),
+            reference_period_start: Utc.ymd(2022, 2, 1).and_hms(00, 00, 00),
+            reference_period_end: Utc.ymd(2021, 8, 31).and_hms(00, 00, 00),
+            geographic_scope: Some(GeographicScope::Subdivision { geography_country_subdivision: String::from("FR-89").into() }),
+            secondary_emission_factor_sources: Some(EmissionFactorDSSet(vec![EmissionFactorDS {
+                name: String::from("Gabi").into(),
+                version: String::from("2022").into(),
+            }])),
+            exempted_emissions_percent: ExemptedEmissionsPercent(0.0),
+            exempted_emissions_description: "".to_string(),
+            packaging_emissions_included: false,
+            packaging_ghg_emissions: None,
+            allocation_rules_description: Some("No allocation used, process subdivision was possible".to_string()),
+            uncertainty_assessment_description: None,
+            primary_data_share: Some(Percent::from(12.6)),
+            dqi: Some(DataQualityIndicators {
+                coverage_percent: Percent::from(83.0),
+                technological_d_q_r: dec!(1.8).into(),
+                temporal_d_q_r: dec!(1.2).into(),
+                geographical_d_q_r: dec!(1.9).into(),
+                completeness_d_q_r: dec!(1.7).into(),
+                reliability_d_q_r: dec!(1.4).into()
+            }),
+            assurance: Some(Assurance {
+                assurance: true,
+                coverage: Some(AssuranceCoverage::PcfSystem),
+                level: Some(AssuranceLevel::Limited),
+                boundary: Some(AssuranceBoundary::CradleToGate),
+                provider_name: "My Auditor".to_string(),
+                completed_at: Some(Utc.ymd(2022, 12, 15).and_hms(00, 00, 00)),
+                standard_name: Some("ISO 14044".to_string()),
+                comments: None
+            }),
+        }
+    };
+);
 
 lazy_static! {
     pub(crate) static ref PCF_DEMO_DATA: Vec<ProductFootprint> = vec![
-        ProductFootprint {
-            id: PfId(uuid!("d9be4477-e351-45b3-acd9-e1da05e6f633")),
-            ..base()
-        },
-        ProductFootprint {
-            id: PfId(uuid!("c3028ee9-d595-4779-a73a-290bfa7505d6")),
-            product_name_company: String::from("Green Ethanol Nuits-Saint-Georges").into(),
-            ..base()
-        },
-        ProductFootprint {
-            id: PfId(uuid!("9faa3200-8b65-4116-bf57-4ec6cff7aed2")),
-            product_name_company: String::from("Green Ethanol Pontigny").into(),
-            ..base()
-        },
-        ProductFootprint {
-            id: PfId(uuid!("02a090d6-5c91-4290-855b-7ad4627903ef")),
-            product_name_company: String::from("Green Ethanol Meursault").into(),
-            ..base()
-        },
-        ProductFootprint {
-            id: PfId(uuid!("18d88391-f4c7-4b79-a302-01c092154177")),
-            updated: Some(*UPDATED_AT),
-            product_name_company: String::from("Green Ethanol Puligny-Montrachet").into(),
-            ..base()
-        },
-        ProductFootprint {
-            id: PfId(uuid!("c20ac3d2-3209-4454-b7bc-073344824d73")),
-            product_name_company: String::from("Green Ethanol Chassagne-Montrachet").into(),
-            version: VersionInteger(1),
-            updated: Some(*UPDATED_AT),
-            pcf: CarbonFootprint {
-                geographic_scope: Some(GeographicScope::Regional {
-                    geography_region_or_subregion: UNRegionOrSubregion::WesternEurope
-                }),
-                ..PCF.clone()
-            },
-            ..base()
-        },
-        ProductFootprint {
-            id: PfId(uuid!("3893bb5d-da16-4dc1-9185-11d97476c254")),
-            product_name_company: String::from("Green Ethanol Volnay").into(),
-            version: VersionInteger(42),
-            updated: Some(*UPDATED_AT),
-            pcf: CarbonFootprint {
-                geographic_scope: None, // i.e. global
-                ..PCF.clone()
-            },
-            ..base()
-        },
-        ProductFootprint {
-            id: PfId(uuid!("3392ff32-421e-44b5-966f-d02df90d91b2")),
-            product_name_company: String::from("Green Ethanol Mont-Saint-Sulpice").into(),
-            pcf: CarbonFootprint {
-                geographic_scope: Some(GeographicScope::Subdivision {
-                    geography_country_subdivision: String::from("FR-89").into(),
-                }),
-                ..PCF.clone()
-            },
-            ..base()
-        },
+        EXAMPLE_1.clone(),
+        EXAMPLE_2.clone(),
+        EXAMPLE_3.clone(),
+        EXAMPLE_1.clone(),
+        EXAMPLE_2.clone(),
+        EXAMPLE_3.clone(),
+        EXAMPLE_1.clone(),
+        EXAMPLE_2.clone(),
+        EXAMPLE_3.clone()
     ];
 }
