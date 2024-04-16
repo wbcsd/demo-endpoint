@@ -323,7 +323,7 @@ fn get_list(
     offset: usize,
     filter: Filter,
     host: Host,
-) -> Either<PfListingResponse, error::AccessDenied> {
+) -> Either<PfListingResponse, error::BadRequest> {
     if auth.is_none() {
         return Either::Right(Default::default());
     }
@@ -377,7 +377,7 @@ fn get_footprints(
     limit: Option<usize>,
     filter: Filter,
     host: Host,
-) -> Either<PfListingResponse, error::AccessDenied> {
+) -> Either<PfListingResponse, error::BadRequest> {
     let limit = limit.unwrap_or(ACTION_LIST_FOOTPRINTS_MIN_RESULTS);
     let offset = 0;
     get_list(auth, limit, offset, filter, host)
@@ -388,7 +388,7 @@ fn get_footprints(
 fn get_pcf(
     id: PfId,
     auth: Option<UserToken>,
-) -> Either<Json<ProductFootprintResponse>, error::AccessDenied> {
+) -> Either<Json<ProductFootprintResponse>, error::BadRequest> {
     if auth.is_some() {
         PCF_DEMO_DATA
             .iter()
@@ -401,7 +401,7 @@ fn get_pcf(
 }
 
 #[get("/2/footprints/<_id>", format = "json", rank = 2)]
-fn get_pcf_unauth(_id: &str) -> error::AccessDenied {
+fn get_pcf_unauth(_id: &str) -> error::BadRequest {
     Default::default()
 }
 
@@ -433,7 +433,7 @@ fn post_event(
 
 #[post("/2/events", rank = 2)]
 fn post_event_fallback() -> EventsApiResponse {
-    EventsApiResponse::NoAuth(error::AccessDenied::default())
+    EventsApiResponse::NoAuth(error::BadRequest::default())
 }
 
 #[get("/")]
@@ -447,7 +447,7 @@ fn bad_request() -> error::BadRequest {
 }
 
 #[catch(default)]
-fn default_handler() -> error::AccessDenied {
+fn default_handler() -> error::BadRequest {
     Default::default()
 }
 
@@ -633,7 +633,7 @@ fn get_list_test() {
             .get(get_list_uri)
             .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
             .dispatch();
-        assert_eq!(rocket::http::Status::Forbidden, resp.status());
+        assert_eq!(rocket::http::Status::BadRequest, resp.status());
     }
 }
 
@@ -854,13 +854,13 @@ fn post_events_test() {
                 bearer_token.clone(),
             ))
             .dispatch();
-        assert_eq!(rocket::http::Status::Forbidden, resp.status());
+        assert_eq!(rocket::http::Status::BadRequest, resp.status());
     }
 
     // test unauth request
     {
         let resp = client.post(post_events_uri).dispatch();
-        assert_eq!(rocket::http::Status::Forbidden, resp.status());
+        assert_eq!(rocket::http::Status::BadRequest, resp.status());
     }
 
     // test authenticated request with OK body
@@ -928,7 +928,7 @@ fn get_pcf_test() {
     {
         let get_pcf_uri = format!("/2/footprints/{}", PCF_DEMO_DATA[2].id.0);
         let resp = client.get(get_pcf_uri).dispatch();
-        assert_eq!(rocket::http::Status::Forbidden, resp.status());
+        assert_eq!(rocket::http::Status::BadRequest, resp.status());
     }
 
     // test malformed PCF ID
@@ -941,7 +941,7 @@ fn get_pcf_test() {
                 bearer_token.clone(),
             ))
             .dispatch();
-        assert_eq!(rocket::http::Status::Forbidden, resp.status());
+        assert_eq!(rocket::http::Status::BadRequest, resp.status());
     }
     // test unknown PCF ID
     {
@@ -950,6 +950,6 @@ fn get_pcf_test() {
             .get(get_pcf_uri)
             .header(rocket::http::Header::new("Authorization", bearer_token))
             .dispatch();
-        assert_eq!(rocket::http::Status::Forbidden, resp.status());
+        assert_eq!(rocket::http::Status::BadRequest, resp.status());
     }
 }

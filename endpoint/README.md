@@ -27,7 +27,7 @@ The following endpoints are available:
   - `/openapi.json`: OpenAPI description file which is automatically generated from the types defined in [`api_types.rs`](src/api_types.rs) and endpoints defined in [`main.rs`](src/main.rs)
   - Swagger UI: `/swagger-ui/` if you fancy a visualization
 
-No further endpoints are supported by this implementation and all return `{"message":"Access Denied", "code":"AccessDenied"}`.
+No further endpoints are supported by this implementation and all return `{"message":"Bad Request","code":"BadRequest"`.
 
 ## Credentials
 
