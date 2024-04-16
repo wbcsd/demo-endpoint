@@ -194,7 +194,7 @@ lazy_static!(
             boundary_processes_description: String::from("1) Material acquisition and preprocessing, including growth of trees 2) Production: fuel consumption, electricity consumption, water consumption, process-generated direct emissions 3) Distribution and storage: transportation of the finished product from manufacturing site to storage site"),
             reference_period_start: Utc.ymd(2021, 1, 1).and_hms(00, 00, 00),
             reference_period_end: Utc.ymd(2022, 1, 1).and_hms(00, 00, 00),
-            geographic_scope: Some(GeographicScope::Subdivision { geography_country_subdivision: String::from("FR-89").into() }),
+            geographic_scope: Some(GeographicScope::Country { geography_country: ISO3166CC("FR".into()) }),
             secondary_emission_factor_sources: Some(EmissionFactorDSSet(vec![EmissionFactorDS {
                 name: String::from("Gabi").into(),
                 version: String::from("2022").into(),

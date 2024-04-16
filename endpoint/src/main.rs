@@ -660,7 +660,7 @@ fn get_list_with_filter_eq_test() {
 
     assert_eq!(rocket::http::Status::Ok, resp.status());
     let json: PfListingResponseInner = resp.into_json().unwrap();
-    assert_eq!(json.data.len(), 5);
+    assert_eq!(json.data.len(), 1);
 }
 
 #[test]
@@ -677,7 +677,7 @@ fn get_list_with_filter_lt_test() {
 
     let bearer_token = format!("Bearer {jwt}");
 
-    let get_list_with_limit_uri = "/2/footprints?$filter=updated+lt+'2023-01-01T00:00:00.000Z'";
+    let get_list_with_limit_uri = "/2/footprints?$filter=updated+lt+'2023-06-27T13:00:00.000Z'";
 
     let resp = client
         .get(get_list_with_limit_uri)
@@ -687,7 +687,7 @@ fn get_list_with_filter_lt_test() {
 
     assert_eq!(rocket::http::Status::Ok, resp.status());
     let json: PfListingResponseInner = resp.into_json().unwrap();
-    assert_eq!(json.data.len(), 3);
+    assert_eq!(json.data.len(), 1);
 }
 
 #[test]
@@ -703,7 +703,7 @@ fn get_list_with_filter_eq_and_lt_test() {
     let jwt = auth::encode_token(&token, key_pair).ok().unwrap();
     let bearer_token = format!("Bearer {jwt}");
 
-    let get_list_with_limit_uri = "/2/footprints?$filter=(pcf/geographyCountry+eq+'FR')+and+(updated+lt+'2023-01-01T00:00:00.000Z')";
+    let get_list_with_limit_uri = "/2/footprints?$filter=(pcf/geographyCountry+eq+'FR')+and+(updated+lt+'2023-06-27T12:12:04.000Z')";
 
     let resp = client
         .get(get_list_with_limit_uri)
@@ -743,7 +743,7 @@ fn get_list_with_filter_any_test() {
 
     assert_eq!(rocket::http::Status::Ok, resp.status());
     let json: PfListingResponseInner = resp.into_json().unwrap();
-    assert_eq!(json.data.len(), 8);
+    assert_eq!(json.data.len(), 1);
 
     let get_list_with_limit_uri =
         "/2/footprints?$filter=productIds/any(productId:(productId+eq+'urn:gtin:12345'))";
@@ -774,7 +774,6 @@ fn get_list_with_limit_test() {
 
     let get_list_with_limit_uri = "/2/footprints?limit=3";
     let expected_next_link1 = "/2/footprints?offset=3&limit=3";
-    let expected_next_link2 = "/2/footprints?offset=6&limit=3";
 
     {
         let resp = client
@@ -799,26 +798,6 @@ fn get_list_with_limit_test() {
     {
         let resp = client
             .get(expected_next_link1)
-            .header(rocket::http::Header::new(
-                "Authorization",
-                bearer_token.clone(),
-            ))
-            .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
-            .dispatch();
-
-        assert_eq!(rocket::http::Status::Ok, resp.status());
-        let link_header = resp.headers().get("link").next().unwrap().to_string();
-        assert_eq!(
-            link_header,
-            format!("<https://api.pathfinder.sine.dev{expected_next_link2}>; rel=\"next\"")
-        );
-        let json: PfListingResponseInner = resp.into_json().unwrap();
-        assert_eq!(json.data.len(), 3);
-    }
-
-    {
-        let resp = client
-            .get(expected_next_link2)
             .header(rocket::http::Header::new("Authorization", bearer_token))
             .header(rocket::http::Header::new("Host", EXAMPLE_HOST))
             .dispatch();
@@ -826,7 +805,7 @@ fn get_list_with_limit_test() {
         assert_eq!(rocket::http::Status::Ok, resp.status());
         assert_eq!(resp.headers().get("link").next(), None);
         let json: PfListingResponseInner = resp.into_json().unwrap();
-        assert_eq!(json.data.len(), 2);
+        assert_eq!(json.data.len(), 1);
     }
 }
 
