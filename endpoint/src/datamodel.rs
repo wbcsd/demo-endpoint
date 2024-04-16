@@ -68,7 +68,7 @@ pub struct CarbonFootprint {
     pub i_luc_ghg_emissions: Option<PositiveDecimal>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub biogenic_carbon_withdrawal: Option<PositiveDecimal>,
+    pub biogenic_carbon_withdrawal: Option<NegativeDecimal>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub aircraft_ghg_emissions: Option<PositiveDecimal>,
@@ -78,14 +78,11 @@ pub struct CarbonFootprint {
     pub ipcc_characterization_factors_sources: IpccCharacterizationFactorsSources,
 
     pub cross_sectoral_standards_used: CrossSectoralStandardSet,
-    pub product_or_sector_specific_rules: ProductOrSectorSpecificRuleSet,
+    pub product_or_sector_specific_rules: Option<ProductOrSectorSpecificRuleSet>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub biogenic_accounting_methodology: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub boundary_processes_description: Option<String>,
-
+    pub biogenic_accounting_methodology: Option<BiogenicAccountingMethodology>,
+    pub boundary_processes_description: String,
     pub reference_period_start: DateTime<Utc>,
     pub reference_period_end: DateTime<Utc>,
 
@@ -187,9 +184,26 @@ pub struct IpccCharacterizationFactorsSource(String);
 #[serde(crate = "rocket::serde")]
 pub struct IpccCharacterizationFactorsSources(pub Vec<IpccCharacterizationFactorsSource>);
 
+#[derive(Debug, Serialize, JsonSchema, Deserialize, Clone, PartialEq)]
+#[serde(crate = "rocket::serde")]
+pub enum BiogenicAccountingMethodology {
+    #[serde(rename = "PEF")]
+    Pef,
+    #[serde(rename = "ISO")]
+    Iso,
+    #[serde(rename = "GHPG")]
+    Ghpg,
+    #[serde(rename = "Quantis")]
+    Quantis,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "rocket::serde", rename_all = "camelCase")]
 pub struct PositiveDecimal(Decimal);
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
+pub struct NegativeDecimal(Decimal);
 
 /// a f64 in the 0..5 range
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -451,6 +465,12 @@ impl From<Decimal> for PositiveDecimal {
     }
 }
 
+impl From<Decimal> for NegativeDecimal {
+    fn from(f: Decimal) -> NegativeDecimal {
+        NegativeDecimal(f)
+    }
+}
+
 impl From<Decimal> for WrappedDecimal {
     fn from(f: Decimal) -> WrappedDecimal {
         WrappedDecimal(f)
@@ -619,6 +639,26 @@ impl JsonSchema for PositiveDecimal {
 
         s.string = Some(Box::new(StringValidation {
             pattern: Some(String::from("^\\d+(\\.\\d+)?$")),
+            ..Default::default()
+        }));
+
+        Schema::Object(s)
+    }
+}
+
+impl JsonSchema for NegativeDecimal {
+    fn schema_name() -> String {
+        "NegativeDecimal".into()
+    }
+
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        let mut s = match String::json_schema(gen) {
+            Schema::Object(s) => s,
+            Schema::Bool(_) => panic!("Unexpected base schema"),
+        };
+
+        s.string = Some(Box::new(StringValidation {
+            pattern: Some(String::from("^(-\\d+(\\.\\d+)?)|0$")),
             ..Default::default()
         }));
 
