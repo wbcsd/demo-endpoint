@@ -7,20 +7,19 @@ jobs:
     name: Rust project
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+      - uses: actions/checkout@v3
       - name: Cache target
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         env:
           cache-name: cache-default-target-and-lockfile
         with:
           path: |
             endpoint/target
-            endpoint/Cargo.lock
-            ~/.rustup
-          key: ${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
       - name: CI
         env:
           PRIV_KEY: ${{ secrets.PRIV_KEY }}
