@@ -1,3 +1,3 @@
-# Pathfinder Use Case 001 Developer Resources
+# Developer Resources
 
-This repository holds the sources for the WBCSD Pathfinder Network Use Case 001 [endpoint implementation](endpoint), and [endpoint description](spec/rest-api).
+This repository holds the sources for the PACT Technical Specifications [endpoint implementation](endpoint), and [endpoint description](spec/rest-api).
