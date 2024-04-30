@@ -45,12 +45,12 @@ lazy_static!(
             characterization_factors: CharacterizationFactors::Ar6,
             ipcc_characterization_factors_sources: IpccCharacterizationFactorsSources::from(vec![String::from("AR6").into()]),
             cross_sectoral_standards_used: CrossSectoralStandardSet(vec![CrossSectoralStandard::Ghgp, CrossSectoralStandard::ISO14067]),
-            product_or_sector_specific_rules: Some(ProductOrSectorSpecificRuleSet(vec![
+            product_or_sector_specific_rules: ProductOrSectorSpecificRuleSet(vec![
                 ProductOrSectorSpecificRule {
                     operator: ProductOrSectorSpecificRuleOperator::Other,
                     rule_names: vec![String::from("The Product Carbon Footprint Guideline for the Chemical Industry, v.2.0").into()].into(),
                     other_operator_name: Some(String::from("Tfs").into())
-                }])),
+                }]),
             biogenic_accounting_methodology: Some(BiogenicAccountingMethodology::Ghpg),
             boundary_processes_description: String::from("1) Material acquisition and preprocessing, including growth of corn 2) Production: fuel consumption, electricity consumption, water consumption, process-generated direct emissions 3) Distribution and storage: transportation of the finished product from manufacturing site to storage site"),
             reference_period_start: Utc.ymd(2021, 1, 1).and_hms(00, 00, 00),
@@ -113,12 +113,12 @@ lazy_static!(
             characterization_factors: CharacterizationFactors::Ar6,
             ipcc_characterization_factors_sources: IpccCharacterizationFactorsSources::from(vec![String::from("AR6").into()]),
             cross_sectoral_standards_used: CrossSectoralStandardSet(vec![CrossSectoralStandard::Ghgp, CrossSectoralStandard::ISO14067]),
-            product_or_sector_specific_rules: Some(ProductOrSectorSpecificRuleSet(vec![
+            product_or_sector_specific_rules: ProductOrSectorSpecificRuleSet(vec![
                 ProductOrSectorSpecificRule {
                     operator: ProductOrSectorSpecificRuleOperator::Other,
                     rule_names: vec![String::from("The Product Carbon Footprint Guideline for the Chemical Industry, v.2.0").into()].into(),
                     other_operator_name: Some(String::from("Tfs").into())
-                }])),
+                }]),
             biogenic_accounting_methodology: Some(BiogenicAccountingMethodology::Ghpg),
             boundary_processes_description: String::from("1) Material acquisition and preprocessing, including growth of corn 2) Production: fuel consumption, electricity consumption, water consumption, process-generated direct emissions 3) Distribution and storage: transportation of the finished product from manufacturing site to storage site"),
             reference_period_start: Utc.ymd(2021, 1, 1).and_hms(00, 00, 00),
@@ -183,13 +183,13 @@ lazy_static!(
             characterization_factors: CharacterizationFactors::Ar5,
             ipcc_characterization_factors_sources: IpccCharacterizationFactorsSources::from(vec![String::from("AR5").into(), String::from("AR6").into()]),
             cross_sectoral_standards_used: CrossSectoralStandardSet(vec![CrossSectoralStandard::Ghgp]),
-            product_or_sector_specific_rules: Some(ProductOrSectorSpecificRuleSet(vec![
+            product_or_sector_specific_rules: ProductOrSectorSpecificRuleSet(vec![
                 ProductOrSectorSpecificRule {
                     operator: ProductOrSectorSpecificRuleOperator::EPDInternational,
                     rule_names: vec![String::from("PCR cardboard").into()].into(),
                     other_operator_name: None
                 }
-            ])),
+            ]),
             biogenic_accounting_methodology: Some(BiogenicAccountingMethodology::Pef),
             boundary_processes_description: String::from("1) Material acquisition and preprocessing, including growth of trees 2) Production: fuel consumption, electricity consumption, water consumption, process-generated direct emissions 3) Distribution and storage: transportation of the finished product from manufacturing site to storage site"),
             reference_period_start: Utc.ymd(2021, 1, 1).and_hms(00, 00, 00),
@@ -263,13 +263,13 @@ lazy_static!(
             characterization_factors: CharacterizationFactors::Ar5,
             ipcc_characterization_factors_sources: IpccCharacterizationFactorsSources::from(vec![String::from("AR5").into(), String::from("AR6").into()]),
             cross_sectoral_standards_used: CrossSectoralStandardSet(vec![CrossSectoralStandard::Ghgp]),
-            product_or_sector_specific_rules: Some(ProductOrSectorSpecificRuleSet(vec![
+            product_or_sector_specific_rules: ProductOrSectorSpecificRuleSet(vec![
                 ProductOrSectorSpecificRule {
                     operator: ProductOrSectorSpecificRuleOperator::EPDInternational,
                     rule_names: vec![String::from("PCR cardboard").into()].into(),
                     other_operator_name: None
                 }
-            ])),
+            ]),
             biogenic_accounting_methodology: Some(BiogenicAccountingMethodology::Pef),
             boundary_processes_description: String::from("1) Material acquisition and preprocessing, including growth of trees 2) Production: fuel consumption, electricity consumption, water consumption, process-generated direct emissions 3) Distribution and storage: transportation of the finished product from manufacturing site to storage site"),
             reference_period_start: Utc.ymd(2021, 1, 1).and_hms(00, 00, 00),
