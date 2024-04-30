@@ -57,7 +57,7 @@
             "schema": {
               "type": "integer",
               "format": "uint",
-              "minimum": 0,
+              "minimum": 0.0,
               "nullable": true
             }
           },
@@ -169,7 +169,9 @@
       "ProductFootprintResponse": {
         "description": "HTTP Body of Action `GetFootprint`",
         "type": "object",
-        "required": ["data"],
+        "required": [
+          "data"
+        ],
         "properties": {
           "data": {
             "$ref": "#/components/schemas/ProductFootprint"
@@ -285,12 +287,15 @@
       "VersionInteger": {
         "type": "integer",
         "format": "int32",
-        "maximum": 2147483647,
-        "minimum": 0
+        "maximum": 2147483647.0,
+        "minimum": 0.0
       },
       "PfStatus": {
         "type": "string",
-        "enum": ["Active", "Deprecated"]
+        "enum": [
+          "Active",
+          "Deprecated"
+        ]
       },
       "NonEmptyString": {
         "type": "string",
@@ -334,6 +339,7 @@
           "ipccCharacterizationFactorsSources",
           "pCfExcludingBiogenic",
           "packagingEmissionsIncluded",
+          "productOrSectorSpecificRules",
           "referencePeriodEnd",
           "referencePeriodStart",
           "unitaryProductAmount"
@@ -423,12 +429,7 @@
             "$ref": "#/components/schemas/CrossSectoralStandardSet"
           },
           "productOrSectorSpecificRules": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ProductOrSectorSpecificRuleSet"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/ProductOrSectorSpecificRuleSet"
           },
           "biogenicAccountingMethodology": {
             "allOf": [
@@ -547,7 +548,10 @@
       },
       "CharacterizationFactors": {
         "type": "string",
-        "enum": ["AR5", "AR6"]
+        "enum": [
+          "AR5",
+          "AR6"
+        ]
       },
       "IpccCharacterizationFactorsSources": {
         "type": "array",
@@ -589,7 +593,10 @@
         "type": "array",
         "items": {
           "type": "object",
-          "required": ["operator", "ruleNames"],
+          "required": [
+            "operator",
+            "ruleNames"
+          ],
           "properties": {
             "operator": {
               "$ref": "#/components/schemas/ProductOrSectorSpecificRuleOperator"
@@ -611,7 +618,10 @@
       },
       "ProductOrSectorSpecificRule": {
         "type": "object",
-        "required": ["operator", "ruleNames"],
+        "required": [
+          "operator",
+          "ruleNames"
+        ],
         "properties": {
           "operator": {
             "$ref": "#/components/schemas/ProductOrSectorSpecificRuleOperator"
@@ -631,7 +641,11 @@
       },
       "ProductOrSectorSpecificRuleOperator": {
         "type": "string",
-        "enum": ["PEF", "EPD International", "Other"]
+        "enum": [
+          "PEF",
+          "EPD International",
+          "Other"
+        ]
       },
       "NonEmptyStringVec": {
         "type": "array",
@@ -644,7 +658,12 @@
       },
       "BiogenicAccountingMethodology": {
         "type": "string",
-        "enum": ["PEF", "ISO", "GHPG", "Quantis"]
+        "enum": [
+          "PEF",
+          "ISO",
+          "GHPG",
+          "Quantis"
+        ]
       },
       "GeographicScope": {
         "description": "Encoded geographic scope rules of a Spec Version 2 `CarbonFootprint`",
@@ -654,7 +673,9 @@
           },
           {
             "type": "object",
-            "required": ["geographyRegionOrSubregion"],
+            "required": [
+              "geographyRegionOrSubregion"
+            ],
             "properties": {
               "geographyRegionOrSubregion": {
                 "$ref": "#/components/schemas/UNRegionOrSubregion"
@@ -663,7 +684,9 @@
           },
           {
             "type": "object",
-            "required": ["geographyCountry"],
+            "required": [
+              "geographyCountry"
+            ],
             "properties": {
               "geographyCountry": {
                 "$ref": "#/components/schemas/ISO3166CC"
@@ -672,7 +695,9 @@
           },
           {
             "type": "object",
-            "required": ["geographyCountrySubdivision"],
+            "required": [
+              "geographyCountrySubdivision"
+            ],
             "properties": {
               "geographyCountrySubdivision": {
                 "$ref": "#/components/schemas/NonEmptyString"
@@ -716,7 +741,10 @@
         "type": "array",
         "items": {
           "type": "object",
-          "required": ["name", "version"],
+          "required": [
+            "name",
+            "version"
+          ],
           "properties": {
             "name": {
               "$ref": "#/components/schemas/NonEmptyString"
@@ -731,7 +759,10 @@
       },
       "EmissionFactorDS": {
         "type": "object",
-        "required": ["name", "version"],
+        "required": [
+          "name",
+          "version"
+        ],
         "properties": {
           "name": {
             "$ref": "#/components/schemas/NonEmptyString"
@@ -744,14 +775,14 @@
       "ExemptedEmissionsPercent": {
         "type": "number",
         "format": "double",
-        "maximum": 5,
-        "minimum": 0
+        "maximum": 5.0,
+        "minimum": 0.0
       },
       "Percent": {
         "type": "number",
         "format": "double",
-        "maximum": 100,
-        "minimum": 0
+        "maximum": 100.0,
+        "minimum": 0.0
       },
       "DataQualityIndicators": {
         "description": "Data Type \"DataQualityIndicators\" of Spec Version 2",
@@ -788,7 +819,10 @@
       "Assurance": {
         "description": "Data Type \"Assurance\" of Spec Version 2",
         "type": "object",
-        "required": ["assurance", "providerName"],
+        "required": [
+          "assurance",
+          "providerName"
+        ],
         "properties": {
           "assurance": {
             "type": "boolean"
@@ -846,16 +880,25 @@
       },
       "AssuranceLevel": {
         "type": "string",
-        "enum": ["limited", "reasonable"]
+        "enum": [
+          "limited",
+          "reasonable"
+        ]
       },
       "AssuranceBoundary": {
         "type": "string",
-        "enum": ["Gate-to-Gate", "Cradle-to-Gate"]
+        "enum": [
+          "Gate-to-Gate",
+          "Cradle-to-Gate"
+        ]
       },
       "BadRequest": {
         "description": "Response with an error code of `BadRequest`. See Chapter \"Error Codes\" of the Tech Specs for mor details.",
         "type": "object",
-        "required": ["code", "message"],
+        "required": [
+          "code",
+          "message"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -868,7 +911,9 @@
       "PfListingResponseInner": {
         "description": "HTTP Body of Action `ListFootprints`",
         "type": "object",
-        "required": ["data"],
+        "required": [
+          "data"
+        ],
         "properties": {
           "data": {
             "type": "array",
@@ -881,7 +926,10 @@
       "AccessDenied": {
         "description": "Response with an error code of `AccessDenied`. See Chapter \"Error Codes\" of the Tech Specs for mor details.",
         "type": "object",
-        "required": ["code", "message"],
+        "required": [
+          "code",
+          "message"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -896,13 +944,18 @@
         "type": "object",
         "oneOf": [
           {
-            "description": "the contents of the `data` field of a `PF Update Event` – see Tech Specs section 6.8.3",
+            "description": "the contents of the `data` field of a `PF Update Event` – see Tech Specs section 6.8.3",
             "type": "object",
-            "required": ["data", "type"],
+            "required": [
+              "data",
+              "type"
+            ],
             "properties": {
               "type": {
                 "type": "string",
-                "enum": ["org.wbcsd.pathfinder.ProductFootprint.Published.v1"]
+                "enum": [
+                  "org.wbcsd.pathfinder.ProductFootprint.Published.v1"
+                ]
               },
               "data": {
                 "$ref": "#/components/schemas/PFUpdateEventBody"
@@ -910,9 +963,12 @@
             }
           },
           {
-            "description": "the contents of the `data` field of a `PF Request Event` – see Tech Specs section 6.8.4.1",
+            "description": "the contents of the `data` field of a `PF Request Event` – see Tech Specs section 6.8.4.1",
             "type": "object",
-            "required": ["data", "type"],
+            "required": [
+              "data",
+              "type"
+            ],
             "properties": {
               "type": {
                 "type": "string",
@@ -926,7 +982,12 @@
             }
           }
         ],
-        "required": ["id", "source", "specversion", "time"],
+        "required": [
+          "id",
+          "source",
+          "specversion",
+          "time"
+        ],
         "properties": {
           "specversion": {
             "type": "string"
@@ -945,7 +1006,9 @@
       },
       "PFUpdateEventBody": {
         "type": "object",
-        "required": ["pfIds"],
+        "required": [
+          "pfIds"
+        ],
         "properties": {
           "pfIds": {
             "type": "array",
@@ -957,7 +1020,9 @@
       },
       "PFRequestEventBody": {
         "type": "object",
-        "required": ["pf"],
+        "required": [
+          "pf"
+        ],
         "properties": {
           "pf": {},
           "comment": {
