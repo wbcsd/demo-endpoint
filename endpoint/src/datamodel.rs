@@ -225,6 +225,10 @@ pub struct Percent(f64);
 pub struct StrictlyPositiveDecimal(Decimal);
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
+pub struct FloatBetween1and3(f32);
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "rocket::serde")]
 pub struct NonEmptyString(pub String);
 
@@ -382,11 +386,11 @@ pub struct EmissionFactorDS {
 /// Data Type "DataQualityIndicators" of Spec Version 2
 pub struct DataQualityIndicators {
     pub coverage_percent: Percent,
-    pub technological_d_q_r: StrictlyPositiveDecimal,
-    pub temporal_d_q_r: StrictlyPositiveDecimal,
-    pub geographical_d_q_r: StrictlyPositiveDecimal,
-    pub completeness_d_q_r: StrictlyPositiveDecimal,
-    pub reliability_d_q_r: StrictlyPositiveDecimal,
+    pub technological_d_q_r: FloatBetween1and3,
+    pub temporal_d_q_r: FloatBetween1and3,
+    pub geographical_d_q_r: FloatBetween1and3,
+    pub completeness_d_q_r: FloatBetween1and3,
+    pub reliability_d_q_r: FloatBetween1and3,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema, PartialEq, Default)]
@@ -492,6 +496,12 @@ impl From<f64> for ExemptedEmissionsPercent {
 impl From<f64> for Percent {
     fn from(f: f64) -> Percent {
         Percent(f)
+    }
+}
+
+impl From<f32> for FloatBetween1and3 {
+    fn from(f: f32) -> FloatBetween1and3 {
+        FloatBetween1and3(f)
     }
 }
 
@@ -743,6 +753,27 @@ impl JsonSchema for Percent {
         s.number = Some(Box::new(NumberValidation {
             minimum: Some(0.00),
             maximum: Some(100.0),
+            ..(NumberValidation::default())
+        }));
+
+        Schema::Object(s)
+    }
+}
+
+impl JsonSchema for FloatBetween1and3 {
+    fn schema_name() -> String {
+        "FloatBetween1And3".into()
+    }
+
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        let mut s = match f32::json_schema(gen) {
+            Schema::Object(s) => s,
+            Schema::Bool(_) => panic!("Unexpected base schema"),
+        };
+
+        s.number = Some(Box::new(NumberValidation {
+            minimum: Some(1.0),
+            maximum: Some(3.0),
             ..(NumberValidation::default())
         }));
 
