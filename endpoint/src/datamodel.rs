@@ -10,7 +10,6 @@
 //! See https://www.carbon-transparency.com for further details.
 use chrono::{DateTime, Utc};
 use rocket::serde::{Deserialize, Serialize};
-use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use schemars::schema::{ArrayValidation, NumberValidation, Schema, StringValidation};
 use schemars::JsonSchema;
