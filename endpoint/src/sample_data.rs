@@ -69,11 +69,11 @@ lazy_static!(
             primary_data_share: Some(Percent::from(12.9)),
             dqi: Some(DataQualityIndicators {
                 coverage_percent: Percent::from(78.0),
-                technological_d_q_r: dec!(1.6).into(),
-                temporal_d_q_r: dec!(2.6).into(),
-                geographical_d_q_r: dec!(1.8).into(),
-                completeness_d_q_r: dec!(1.7).into(),
-                reliability_d_q_r: dec!(2.1).into()
+                technological_d_q_r: 1.6.into(),
+                temporal_d_q_r: 2.6.into(),
+                geographical_d_q_r: 1.8.into(),
+                completeness_d_q_r: 1.7.into(),
+                reliability_d_q_r: 2.1.into()
             }),
             assurance: Some(Assurance::default()),
         }
@@ -137,11 +137,11 @@ lazy_static!(
             primary_data_share: Some(Percent::from(16.8)),
             dqi: Some(DataQualityIndicators {
                 coverage_percent: Percent::from(87.0),
-                technological_d_q_r: dec!(2.3).into(),
-                temporal_d_q_r: dec!(1.4).into(),
-                geographical_d_q_r: dec!(2.5).into(),
-                completeness_d_q_r: dec!(1.1).into(),
-                reliability_d_q_r: dec!(1.6).into()
+                technological_d_q_r: 2.3.into(),
+                temporal_d_q_r: 1.4.into(),
+                geographical_d_q_r: 2.5.into(),
+                completeness_d_q_r: 1.1.into(),
+                reliability_d_q_r: 1.6.into()
             }),
             assurance: Some(Assurance::default()),
         }
@@ -208,11 +208,11 @@ lazy_static!(
             primary_data_share: Some(Percent::from(12.6)),
             dqi: Some(DataQualityIndicators {
                 coverage_percent: Percent::from(83.0),
-                technological_d_q_r: dec!(1.8).into(),
-                temporal_d_q_r: dec!(1.2).into(),
-                geographical_d_q_r: dec!(1.9).into(),
-                completeness_d_q_r: dec!(1.7).into(),
-                reliability_d_q_r: dec!(1.4).into()
+                technological_d_q_r: 1.8.into(),
+                temporal_d_q_r: 1.2.into(),
+                geographical_d_q_r: 1.9.into(),
+                completeness_d_q_r: 1.7.into(),
+                reliability_d_q_r: 1.4.into()
             }),
             assurance: Some(Assurance {
                 assurance: true,
@@ -288,11 +288,11 @@ lazy_static!(
             primary_data_share: Some(Percent::from(12.6)),
             dqi: Some(DataQualityIndicators {
                 coverage_percent: Percent::from(83.0),
-                technological_d_q_r: dec!(1.8).into(),
-                temporal_d_q_r: dec!(1.2).into(),
-                geographical_d_q_r: dec!(1.9).into(),
-                completeness_d_q_r: dec!(1.7).into(),
-                reliability_d_q_r: dec!(1.4).into()
+                technological_d_q_r: 1.8.into(),
+                temporal_d_q_r: 1.2.into(),
+                geographical_d_q_r: 1.9.into(),
+                completeness_d_q_r: 1.7.into(),
+                reliability_d_q_r: 1.4.into()
             }),
             assurance: Some(Assurance {
                 assurance: true,
