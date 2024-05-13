@@ -1,6 +1,6 @@
 [package]
 name = "pathfinder-endpoint"
-version = "2.2.0-wip1"
+version = "2.2.1-wip1"
 edition = "2018"
 
 [[bin]]
