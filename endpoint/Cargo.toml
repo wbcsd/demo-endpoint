@@ -26,3 +26,6 @@ rsa = { version = "0.9.2", features = ["pem", "sha2"] }
 rand = "0.8.5"
 uuid = { version = "1.8", features = ["v4", "serde"] }
 rocket = { version = "0.5.0", features = ["json"] }
+
+[dev-dependencies]
+serde_json = "1.0"

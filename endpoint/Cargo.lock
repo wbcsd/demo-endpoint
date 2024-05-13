@@ -985,6 +985,7 @@ dependencies = [
  "rust_decimal",
  "rust_decimal_macros",
  "schemars",
+ "serde_json",
  "url",
  "uuid",
 ]
