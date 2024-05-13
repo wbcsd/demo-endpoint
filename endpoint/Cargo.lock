@@ -970,7 +970,7 @@ dependencies = [
 
 [[package]]
 name = "pathfinder-endpoint"
-version = "2.2.0-wip1"
+version = "2.2.1-wip1"
 dependencies = [
  "base64 0.13.0",
  "chrono",
@@ -985,6 +985,7 @@ dependencies = [
  "rust_decimal",
  "rust_decimal_macros",
  "schemars",
+ "serde_json",
  "url",
  "uuid",
 ]
