@@ -87,6 +87,7 @@ pub struct CarbonFootprint {
     pub reference_period_end: DateTime<Utc>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(flatten)]
     pub geographic_scope: Option<GeographicScope>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
