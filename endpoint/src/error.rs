@@ -132,7 +132,7 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for OAuth2ErrorMessage {
     fn respond_to(self, request: &'r Request<'_>) -> response::Result<'o> {
         Response::build()
             .merge(Json(self).respond_to(request)?)
-            .status(Status::Unauthorized)
+            .status(Status::BadRequest)
             .ok()
     }
 }
