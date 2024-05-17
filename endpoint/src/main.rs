@@ -120,7 +120,7 @@ fn oauth2_create_token(
     } else {
         Either::Right(error::OAuth2ErrorMessage {
             error_description: "Invalid client credentials",
-            error: "unauthorized_client",
+            error: "invalid_client",
         })
     }
 }
@@ -520,12 +520,12 @@ fn post_auth_action_test() {
             rocket::http::ContentType::JSON,
             resp.content_type().unwrap()
         );
-        assert_eq!(rocket::http::Status::Unauthorized, resp.status());
+        assert_eq!(rocket::http::Status::BadRequest, resp.status());
 
         let error_response: HashMap<String, String> = resp.into_json().unwrap();
         assert_eq!(
             HashMap::from([
-                ("error".to_string(), "unauthorized_client".to_string()),
+                ("error".to_string(), "invalid_client".to_string()),
                 (
                     "error_description".to_string(),
                     "Invalid client credentials".to_string()
