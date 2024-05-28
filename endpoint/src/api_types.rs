@@ -9,9 +9,9 @@
 #![allow(renamed_and_removed_lints)]
 #![allow(clippy::blocks_in_conditions)]
 
-use crate::datamodel::{PfId, ProductFootprint};
 use chrono::{DateTime, Utc};
 use okapi::openapi3::Responses;
+use pact_data_model::*;
 use rocket::serde::json::Json;
 use rocket::{
     http::Header,
@@ -21,6 +21,7 @@ use rocket_okapi::gen::OpenApiGenerator;
 use rocket_okapi::response::OpenApiResponderInner;
 use rocket_okapi::OpenApiError;
 use schemars::JsonSchema;
+use uuid::Uuid;
 
 #[derive(FromForm)]
 pub(crate) struct FilterString<'r> {
@@ -109,6 +110,23 @@ pub(crate) struct PFRequestEventBody {
     pub(crate) pf: rocket::serde::json::Value,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) comment: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
+#[serde(crate = "rocket::serde", rename_all = "camelCase")]
+pub(crate) struct PfIdParam(pub PfId);
+
+impl<'a> rocket::request::FromParam<'a> for PfIdParam {
+    type Error = UuidError;
+
+    fn from_param(param: &'a str) -> Result<Self, Self::Error> {
+        let uuid = Uuid::parse_str(param).map_err(UuidError::ParseError)?;
+        if uuid.get_version_num() != 4 {
+            Err(UuidError::VersionError)
+        } else {
+            Ok(PfIdParam(PfId(uuid)))
+        }
+    }
 }
 
 fn openapi_link_header() -> okapi::openapi3::Header {
