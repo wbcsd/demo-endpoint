@@ -11,11 +11,11 @@ extern crate rocket;
 extern crate lazy_static;
 mod api_types;
 mod auth;
-mod datamodel;
 mod error;
 mod openid_conf;
 mod sample_data;
 
+use pact_data_model::*;
 use auth::{load_keys, UserToken};
 use chrono::{DateTime, Utc};
 use either::Either;
@@ -38,7 +38,6 @@ use rocket_okapi::swagger_ui::{make_swagger_ui, SwaggerUIConfig};
 use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};
 
 use api_types::*;
-use datamodel::{PfId, ProductFootprint};
 use openid_conf::OpenIdConfiguration;
 use rsa::traits::PublicKeyParts;
 use sample_data::PCF_DEMO_DATA;
@@ -383,16 +382,18 @@ fn get_footprints(
     get_list(auth, limit, offset, filter, host)
 }
 
+
+
 #[openapi]
 #[get("/2/footprints/<id>", format = "json", rank = 1)]
 fn get_pcf(
-    id: PfId,
+    id: PfIdParam,
     auth: Option<UserToken>,
 ) -> Either<Json<ProductFootprintResponse>, error::BadRequest> {
     if auth.is_some() {
         PCF_DEMO_DATA
             .iter()
-            .find(|pf| pf.id == id)
+            .find(|pf| pf.id == id.0)
             .map(|pcf| Left(Json(ProductFootprintResponse { data: pcf.clone() })))
             .unwrap_or_else(|| Either::Right(Default::default()))
     } else {

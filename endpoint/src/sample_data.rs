@@ -4,8 +4,8 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the crate's root directory of this source tree.
  */
-use crate::datamodel::*;
 use chrono::prelude::*;
+use pact_data_model::*;
 use rust_decimal_macros::dec;
 use uuid::uuid;
 
@@ -76,7 +76,8 @@ lazy_static!(
                 reliability_d_q_r: 2.1.into()
             }),
             assurance: Some(Assurance::default()),
-        }
+        },
+        extensions: None
     };
     static ref EXAMPLE_2: ProductFootprint = ProductFootprint {
         id: PfId(uuid!("61ff98c0-9e13-47d9-bb13-0b5381468165")),
@@ -144,7 +145,8 @@ lazy_static!(
                 reliability_d_q_r: 1.6.into()
             }),
             assurance: Some(Assurance::default()),
-        }
+        },
+        extensions: None
     };
 
     // a footprint deprecated by EXAMPLE_4
@@ -224,7 +226,8 @@ lazy_static!(
                 standard_name: Some("ISO 14044".to_string()),
                 comments: None
             }),
-        }
+        },
+        extensions: None
     };
 
     // this is the PCF superseeding EXAMPLE_3
@@ -304,7 +307,8 @@ lazy_static!(
                 standard_name: Some("ISO 14044".to_string()),
                 comments: None
             }),
-        }
+        },
+        extensions: None
     };
 );
 
