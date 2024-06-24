@@ -38,6 +38,8 @@ use rocket_okapi::swagger_ui::{make_swagger_ui, SwaggerUIConfig};
 use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};
 
 use api_types::*;
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use datamodel::{PfId, ProductFootprint};
 use openid_conf::OpenIdConfiguration;
 use rsa::traits::PublicKeyParts;
 use sample_data::PCF_DEMO_DATA;
@@ -90,8 +92,8 @@ fn jwks(state: &State<KeyPair>) -> Json<JwkSet> {
             },
             algorithm: AlgorithmParameters::RSA(RSAKeyParameters {
                 key_type: jsonwebtoken::jwk::RSAKeyType::RSA,
-                n: base64::encode_config(pub_key.n().to_bytes_be(), base64::URL_SAFE_NO_PAD),
-                e: base64::encode_config(pub_key.e().to_bytes_be(), base64::URL_SAFE_NO_PAD),
+                n: URL_SAFE_NO_PAD.encode(pub_key.n().to_bytes_be()),
+                e: URL_SAFE_NO_PAD.encode(pub_key.e().to_bytes_be()),
             }),
         }],
     };
@@ -496,6 +498,7 @@ lazy_static! {
 // tests the /v2/auth/token endpoint
 #[test]
 fn post_auth_action_test() {
+    use base64::engine::general_purpose::STANDARD;
     use std::collections::HashMap;
 
     let auth_uri = "/2/auth/token";
@@ -504,7 +507,7 @@ fn post_auth_action_test() {
 
     // invalid credentials
     {
-        let credentials = base64::encode("hello:wrong_password");
+        let credentials = STANDARD.encode("hello:wrong_password");
         let basic_auth = format!("Basic {credentials}");
         let resp = client
             .post(auth_uri)
@@ -538,7 +541,7 @@ fn post_auth_action_test() {
 
     // valid credentials
     {
-        let credentials = base64::encode(format!("{}:{}", AUTH_USERNAME, AUTH_PASSWORD));
+        let credentials = STANDARD.encode(format!("{}:{}", AUTH_USERNAME, AUTH_PASSWORD));
         let basic_auth = format!("Basic {credentials}");
 
         let resp = client
