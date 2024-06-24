@@ -73,6 +73,7 @@ pub struct OAuth2TokenReply {
 
 #[derive(rocket::form::FromForm)]
 pub struct OAuth2ClientCredentialsBody<'r> {
+    #[allow(dead_code)]
     pub grant_type: &'r str,
     pub scope: Option<&'r str>,
 }
