@@ -227,7 +227,7 @@ fn test_pathfinder_event_deser() {
     use chrono::prelude::*;
     use uuid::uuid;
 
-    let time = Utc.ymd(2022, 05, 31).and_hms(17, 31, 00);
+    let time = Utc.with_ymd_and_hms(2022, 05, 31, 17, 31, 00).unwrap();
     let event = PathfinderEvent {
         specversion: "1.0".to_owned(),
         id: "123".to_owned(),

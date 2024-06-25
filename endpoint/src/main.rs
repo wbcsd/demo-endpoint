@@ -39,7 +39,6 @@ use rocket_okapi::{get_openapi_route, openapi, openapi_get_routes_spec};
 
 use api_types::*;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-use datamodel::{PfId, ProductFootprint};
 use openid_conf::OpenIdConfiguration;
 use rsa::traits::PublicKeyParts;
 use sample_data::PCF_DEMO_DATA;
@@ -850,7 +849,7 @@ fn post_events_test() {
     {
         use chrono::prelude::*;
         use uuid::uuid;
-        let time = Utc.ymd(2022, 05, 31).and_hms(17, 31, 00);
+        let time = Utc.with_ymd_and_hms(2022, 05, 31, 17, 31, 00).unwrap();
         let event = PathfinderEvent {
             specversion: "1.0".to_owned(),
             id: "123".to_owned(),

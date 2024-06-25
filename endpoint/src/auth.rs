@@ -237,6 +237,6 @@ fn decode_basic_auth_test() {
             id: "martin".into(),
             secret: "secret".into()
         }),
-        decode_basic_auth(&base64::encode(b"martin:secret"))
+        decode_basic_auth(&STANDARD.encode(b"martin:secret"))
     );
 }
