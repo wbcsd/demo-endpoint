@@ -34,6 +34,8 @@ use rsa::pkcs8::DecodePrivateKey;
 use rsa::pkcs8::EncodePublicKey;
 use rsa::{pkcs8::LineEnding, RsaPrivateKey, RsaPublicKey};
 
+use base64::{engine::general_purpose::STANDARD, Engine as _};
+
 #[derive(Clone)]
 pub struct KeyPair {
     pub pub_key: RsaPublicKey,
@@ -71,6 +73,7 @@ pub struct OAuth2TokenReply {
 
 #[derive(rocket::form::FromForm)]
 pub struct OAuth2ClientCredentialsBody<'r> {
+    #[allow(dead_code)]
     pub grant_type: &'r str,
     pub scope: Option<&'r str>,
 }
@@ -106,7 +109,7 @@ impl<'r> FromRequest<'r> for OAuth2ClientCredentials {
 }
 
 fn decode_basic_auth(raw_auth_info: &str) -> Option<OAuth2ClientCredentials> {
-    if let Ok(auth_info) = base64::decode(raw_auth_info) {
+    if let Ok(auth_info) = STANDARD.decode(raw_auth_info) {
         if let Ok(decoded_str) = String::from_utf8(auth_info) {
             let username_password = decoded_str.split(':').collect::<Vec<_>>();
             if username_password.len() == 2 {
@@ -234,6 +237,6 @@ fn decode_basic_auth_test() {
             id: "martin".into(),
             secret: "secret".into()
         }),
-        decode_basic_auth(&base64::encode(b"martin:secret"))
+        decode_basic_auth(&STANDARD.encode(b"martin:secret"))
     );
 }
